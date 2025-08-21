@@ -74,14 +74,19 @@ export class PartService {
       }
     }
 
+    const createData: any = {
+      ...data,
+      price: new Prisma.Decimal(data.price),
+      cost: data.cost ? new Prisma.Decimal(data.cost) : null,
+      weight: data.weight ? new Prisma.Decimal(data.weight) : null,
+    };
+
+    if (userId) {
+      createData.createdBy = userId;
+    }
+
     const part = await prisma.part.create({
-      data: {
-        ...data,
-        price: new Prisma.Decimal(data.price),
-        cost: data.cost ? new Prisma.Decimal(data.cost) : null,
-        weight: data.weight ? new Prisma.Decimal(data.weight) : null,
-        createdBy: userId,
-      },
+      data: createData,
     });
 
     logger.info(`Part created: ${part.partNumber}`, { userId, partId: part.id });
