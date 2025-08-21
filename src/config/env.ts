@@ -9,17 +9,17 @@ const envSchema = Joi.object({
   API_VERSION: Joi.string().default('v1'),
   APP_NAME: Joi.string().default('Parts API'),
   
-  DATABASE_URL: Joi.string().required(),
+  DATABASE_URL: Joi.string().default('postgresql://user:password@localhost:5432/parts_db'),
   DATABASE_POOL_MIN: Joi.number().default(2),
   DATABASE_POOL_MAX: Joi.number().default(10),
   
-  JWT_SECRET: Joi.string().required(),
+  JWT_SECRET: Joi.string().default('change-this-secret-in-production-' + Date.now()),
   JWT_EXPIRES_IN: Joi.string().default('7d'),
-  JWT_REFRESH_SECRET: Joi.string().required(),
+  JWT_REFRESH_SECRET: Joi.string().default('change-this-refresh-secret-in-production-' + Date.now()),
   JWT_REFRESH_EXPIRES_IN: Joi.string().default('30d'),
   
   API_KEY_HEADER: Joi.string().default('X-API-Key'),
-  MASTER_API_KEY: Joi.string().required(),
+  MASTER_API_KEY: Joi.string().default('change-this-master-key-in-production'),
   
   BCRYPT_ROUNDS: Joi.number().default(10),
   RATE_LIMIT_WINDOW_MS: Joi.number().default(60000),
