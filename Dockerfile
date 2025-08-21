@@ -8,8 +8,8 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install dependencies
-RUN npm ci --only=production && \
+# Install dependencies (skip prepare script in production)
+RUN npm ci --only=production --ignore-scripts && \
     npm install -g typescript && \
     npm install --save-dev @types/node
 
@@ -38,8 +38,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies only
-RUN npm ci --only=production && \
+# Install production dependencies only (skip prepare script)
+RUN npm ci --only=production --ignore-scripts && \
     npm cache clean --force
 
 # Copy Prisma files

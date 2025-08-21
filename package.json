@@ -18,7 +18,7 @@
     "generate": "prisma generate",
     "seed": "ts-node scripts/seed.ts",
     "generate-swagger": "ts-node scripts/generate-swagger.ts",
-    "prepare": "husky install"
+    "prepare": "echo 'Skipping husky install in production'"
   },
   "keywords": [],
   "author": "",
