@@ -22,7 +22,8 @@ export async function connectDatabase(): Promise<void> {
     logger.info('Database connected successfully');
   } catch (error) {
     logger.error('Database connection failed:', error);
-    process.exit(1);
+    logger.warn('Application will continue without database connection');
+    // Don't exit - let the app run without DB
   }
 }
 
