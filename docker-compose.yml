@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: parts-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: parts_user
+      POSTGRES_PASSWORD: parts_password
+      POSTGRES_DB: parts_db
+      POSTGRES_HOST_AUTH_METHOD: md5
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - parts-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U parts_user -d parts_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: parts-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://parts_user:parts_password@postgres:5432/parts_db
+      JWT_SECRET: your-super-secret-jwt-key-change-this-in-production
+      JWT_REFRESH_SECRET: your-super-secret-refresh-key-change-this-in-production
+      MASTER_API_KEY: your-master-api-key-change-this-in-production
+      CORS_ORIGIN: http://localhost:3000,http://localhost:3001
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - parts-network
+    volumes:
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+    command: >
+      sh -c "
+        npx prisma migrate deploy &&
+        node dist/index.js
+      "
+
+  redis:
+    image: redis:7-alpine
+    container_name: parts-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - parts-network
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+networks:
+  parts-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:

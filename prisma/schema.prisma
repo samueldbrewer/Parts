@@ -1,0 +1,145 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  username     String    @unique
+  password     String
+  firstName    String?
+  lastName     String?
+  role         Role      @default(USER)
+  isActive     Boolean   @default(true)
+  apiKey       String?   @unique
+  refreshToken String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastLogin    DateTime?
+  parts        Part[]
+  auditLogs    AuditLog[]
+
+  @@index([email])
+  @@index([username])
+  @@index([apiKey])
+}
+
+model Part {
+  id            String        @id @default(uuid())
+  partNumber    String        @unique
+  name          String
+  description   String?
+  manufacturer  String?
+  category      String
+  subcategory   String?
+  price         Decimal       @db.Decimal(10, 2)
+  cost          Decimal?      @db.Decimal(10, 2)
+  quantity      Int           @default(0)
+  minQuantity   Int           @default(0)
+  location      String?
+  barcode       String?       @unique
+  sku           String?       @unique
+  weight        Decimal?      @db.Decimal(10, 3)
+  dimensions    Json?
+  specifications Json?
+  images        String[]
+  tags          String[]
+  status        PartStatus    @default(ACTIVE)
+  createdBy     String?
+  creator       User?         @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  inventoryLogs InventoryLog[]
+  
+  @@index([partNumber])
+  @@index([name])
+  @@index([category])
+  @@index([status])
+  @@index([barcode])
+  @@index([sku])
+}
+
+model InventoryLog {
+  id           String          @id @default(uuid())
+  partId       String
+  part         Part            @relation(fields: [partId], references: [id], onDelete: Cascade)
+  type         InventoryAction
+  quantity     Int
+  previousQty  Int
+  newQty       Int
+  reference    String?
+  notes        String?
+  performedBy  String?
+  createdAt    DateTime        @default(now())
+  
+  @@index([partId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  entity     String
+  entityId   String?
+  oldValue   Json?
+  newValue   Json?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  
+  @@index([userId])
+  @@index([entity])
+  @@index([createdAt])
+}
+
+model ApiKey {
+  id          String    @id @default(uuid())
+  key         String    @unique
+  name        String
+  description String?
+  permissions String[]
+  expiresAt   DateTime?
+  lastUsed    DateTime?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@index([key])
+  @@index([isActive])
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  USER
+  VIEWER
+}
+
+enum PartStatus {
+  ACTIVE
+  INACTIVE
+  DISCONTINUED
+  OUT_OF_STOCK
+  PENDING
+}
+
+enum InventoryAction {
+  ADD
+  REMOVE
+  ADJUST
+  TRANSFER
+  RETURN
+  DAMAGE
+  LOSS
+}
