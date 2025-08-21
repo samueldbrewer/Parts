@@ -57,11 +57,15 @@ export const createApp = (): Application => {
 
   // API Documentation
   if (config.swagger.enabled) {
-    const swaggerDocument = require('../swagger.json');
-    app.use(config.swagger.path, swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
-      customCss: '.swagger-ui .topbar { display: none }',
-      customSiteTitle: 'Parts API Documentation',
-    }));
+    try {
+      const swaggerDocument = require('../swagger.json');
+      app.use(config.swagger.path, swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
+        customCss: '.swagger-ui .topbar { display: none }',
+        customSiteTitle: 'Parts API Documentation',
+      }));
+    } catch (error) {
+      logger.warn('Swagger documentation not found. Run npm run generate-swagger to create it.');
+    }
   }
 
   // API routes
