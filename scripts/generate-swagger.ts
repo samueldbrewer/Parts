@@ -6,12 +6,12 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Parts Inventory API',
+      title: 'API Starter Template',
       version: '1.0.0',
-      description: 'A comprehensive RESTful API for managing parts inventory and catalog system.\n\n**⚠️ IMPORTANT**: This API requires a PostgreSQL database to be fully functional. Currently running without database - only /health and /metrics endpoints are operational. All other endpoints will return database connection errors.',
+      description: 'A production-ready API starter template with TypeScript, Express, PostgreSQL, and Prisma',
       contact: {
         name: 'API Support',
-        email: 'support@partsapi.com',
+        email: 'support@example.com',
       },
       license: {
         name: 'MIT',
@@ -21,189 +21,35 @@ const options = {
     servers: [
       {
         url: 'https://parts.up.railway.app/api/v1',
-        description: 'Railway Production (No DB - Limited Functionality)',
+        description: 'Production server',
       },
       {
         url: 'http://localhost:3000/api/v1',
         description: 'Development server',
       },
     ],
-    components: {
-      securitySchemes: {
-        bearerAuth: {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
-          description: 'JWT authentication token',
-        },
-        apiKeyAuth: {
-          type: 'apiKey',
-          in: 'header',
-          name: 'X-API-Key',
-          description: 'API key authentication',
-        },
-      },
-      schemas: {
-        Error: {
-          type: 'object',
-          properties: {
-            success: { type: 'boolean', example: false },
-            error: { type: 'string' },
-            code: { type: 'string' },
-          },
-        },
-        User: {
-          type: 'object',
-          properties: {
-            id: { type: 'string', format: 'uuid' },
-            email: { type: 'string', format: 'email' },
-            username: { type: 'string' },
-            firstName: { type: 'string' },
-            lastName: { type: 'string' },
-            role: { type: 'string', enum: ['ADMIN', 'MANAGER', 'USER', 'VIEWER'] },
-            isActive: { type: 'boolean' },
-            createdAt: { type: 'string', format: 'date-time' },
-            updatedAt: { type: 'string', format: 'date-time' },
-          },
-        },
-        Part: {
-          type: 'object',
-          properties: {
-            id: { type: 'string', format: 'uuid' },
-            partNumber: { type: 'string' },
-            name: { type: 'string' },
-            description: { type: 'string' },
-            manufacturer: { type: 'string' },
-            category: { type: 'string' },
-            subcategory: { type: 'string' },
-            price: { type: 'number', format: 'decimal' },
-            cost: { type: 'number', format: 'decimal' },
-            quantity: { type: 'integer' },
-            minQuantity: { type: 'integer' },
-            location: { type: 'string' },
-            barcode: { type: 'string' },
-            sku: { type: 'string' },
-            weight: { type: 'number' },
-            dimensions: { type: 'object' },
-            specifications: { type: 'object' },
-            images: { type: 'array', items: { type: 'string' } },
-            tags: { type: 'array', items: { type: 'string' } },
-            status: { type: 'string', enum: ['ACTIVE', 'INACTIVE', 'DISCONTINUED', 'OUT_OF_STOCK', 'PENDING'] },
-            createdAt: { type: 'string', format: 'date-time' },
-            updatedAt: { type: 'string', format: 'date-time' },
-          },
-        },
-      },
-    },
     paths: {
-      '/auth/register': {
-        post: {
-          tags: ['Authentication'],
-          summary: 'Register a new user (Requires Database)',
-          description: '⚠️ This endpoint requires a database connection. Currently unavailable.',
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  required: ['email', 'username', 'password'],
-                  properties: {
-                    email: { type: 'string', format: 'email' },
-                    username: { type: 'string', minLength: 3, maxLength: 30 },
-                    password: { type: 'string', minLength: 8 },
-                    firstName: { type: 'string' },
-                    lastName: { type: 'string' },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            201: {
-              description: 'User registered successfully',
-              content: {
-                'application/json': {
-                  schema: {
-                    type: 'object',
-                    properties: {
-                      success: { type: 'boolean' },
-                      data: {
-                        type: 'object',
-                        properties: {
-                          accessToken: { type: 'string' },
-                          refreshToken: { type: 'string' },
-                          expiresIn: { type: 'string' },
-                          user: { $ref: '#/components/schemas/User' },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-            400: { description: 'Invalid input' },
-            409: { description: 'Email or username already exists' },
-          },
-        },
-      },
-      '/auth/login': {
-        post: {
-          tags: ['Authentication'],
-          summary: 'Login user (Requires Database)',
-          description: '⚠️ This endpoint requires a database connection. Currently unavailable.',
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  required: ['password'],
-                  properties: {
-                    email: { type: 'string', format: 'email' },
-                    username: { type: 'string' },
-                    password: { type: 'string' },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            200: { description: 'Login successful' },
-            401: { description: 'Invalid credentials' },
-          },
-        },
-      },
-      '/parts': {
+      '/': {
         get: {
-          tags: ['Parts'],
-          summary: 'Get all parts (Requires Database)',
-          description: '⚠️ This endpoint requires a database connection. Currently unavailable.',
-          security: [{ bearerAuth: [] }, { apiKeyAuth: [] }],
-          parameters: [
-            { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
-            { name: 'limit', in: 'query', schema: { type: 'integer', default: 20 } },
-            { name: 'search', in: 'query', schema: { type: 'string' } },
-            { name: 'category', in: 'query', schema: { type: 'string' } },
-            { name: 'status', in: 'query', schema: { type: 'string' } },
-          ],
+          tags: ['General'],
+          summary: 'API Welcome',
+          description: 'Returns basic API information',
           responses: {
             200: {
-              description: 'List of parts',
+              description: 'API information',
               content: {
                 'application/json': {
                   schema: {
                     type: 'object',
                     properties: {
-                      success: { type: 'boolean' },
-                      data: { type: 'array', items: { $ref: '#/components/schemas/Part' } },
-                      metadata: {
+                      message: { type: 'string' },
+                      version: { type: 'string' },
+                      endpoints: {
                         type: 'object',
                         properties: {
-                          page: { type: 'integer' },
-                          limit: { type: 'integer' },
-                          total: { type: 'integer' },
-                          totalPages: { type: 'integer' },
+                          health: { type: 'string' },
+                          metrics: { type: 'string' },
+                          docs: { type: 'string' },
                         },
                       },
                     },
@@ -211,132 +57,67 @@ const options = {
                 },
               },
             },
-          },
-        },
-        post: {
-          tags: ['Parts'],
-          summary: 'Create a new part (Requires Database)',
-          description: '⚠️ This endpoint requires a database connection. Currently unavailable.',
-          security: [{ bearerAuth: [] }, { apiKeyAuth: [] }],
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  required: ['partNumber', 'name', 'category', 'price'],
-                  properties: {
-                    partNumber: { type: 'string' },
-                    name: { type: 'string' },
-                    description: { type: 'string' },
-                    manufacturer: { type: 'string' },
-                    category: { type: 'string' },
-                    subcategory: { type: 'string' },
-                    price: { type: 'number' },
-                    cost: { type: 'number' },
-                    quantity: { type: 'integer' },
-                    minQuantity: { type: 'integer' },
-                    location: { type: 'string' },
-                    barcode: { type: 'string' },
-                    sku: { type: 'string' },
-                    weight: { type: 'number' },
-                    dimensions: { type: 'object' },
-                    specifications: { type: 'object' },
-                    images: { type: 'array', items: { type: 'string' } },
-                    tags: { type: 'array', items: { type: 'string' } },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            201: { description: 'Part created successfully' },
-            400: { description: 'Invalid input' },
-            401: { description: 'Unauthorized' },
-            403: { description: 'Insufficient permissions' },
-          },
-        },
-      },
-      '/parts/{id}': {
-        get: {
-          tags: ['Parts'],
-          summary: 'Get part by ID (Requires Database)',
-          description: '⚠️ This endpoint requires a database connection. Currently unavailable.',
-          parameters: [
-            { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
-          ],
-          responses: {
-            200: { description: 'Part details' },
-            404: { description: 'Part not found' },
-          },
-        },
-        put: {
-          tags: ['Parts'],
-          summary: 'Update part (Requires Database)',
-          description: '⚠️ This endpoint requires a database connection. Currently unavailable.',
-          security: [{ bearerAuth: [] }, { apiKeyAuth: [] }],
-          parameters: [
-            { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
-          ],
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/Part' },
-              },
-            },
-          },
-          responses: {
-            200: { description: 'Part updated successfully' },
-            400: { description: 'Invalid input' },
-            401: { description: 'Unauthorized' },
-            403: { description: 'Insufficient permissions' },
-            404: { description: 'Part not found' },
-          },
-        },
-        delete: {
-          tags: ['Parts'],
-          summary: 'Delete part (Requires Database)',
-          description: '⚠️ This endpoint requires a database connection. Currently unavailable.',
-          security: [{ bearerAuth: [] }, { apiKeyAuth: [] }],
-          parameters: [
-            { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
-          ],
-          responses: {
-            200: { description: 'Part deleted successfully' },
-            401: { description: 'Unauthorized' },
-            403: { description: 'Insufficient permissions' },
-            404: { description: 'Part not found' },
           },
         },
       },
       '/health': {
         get: {
-          tags: ['Health'],
-          summary: '✅ Health check endpoint (WORKING)',
-          description: 'This endpoint is fully functional and shows the service health status including database connectivity.',
+          tags: ['Monitoring'],
+          summary: 'Health check',
+          description: 'Returns the health status of the service including database connectivity',
           responses: {
-            200: { description: 'Service is healthy' },
-            503: { description: 'Service is unhealthy' },
+            200: {
+              description: 'Service is healthy',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      status: { type: 'string', example: 'healthy' },
+                      timestamp: { type: 'string', format: 'date-time' },
+                      service: { type: 'string' },
+                      version: { type: 'string' },
+                      database: { type: 'string', example: 'connected' },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
       '/metrics': {
         get: {
-          tags: ['Metrics'],
-          summary: '✅ Get service metrics (WORKING)',
-          description: 'This endpoint is fully functional and returns system metrics including CPU, memory, and uptime.',
+          tags: ['Monitoring'],
+          summary: 'System metrics',
+          description: 'Returns system metrics including CPU, memory, and uptime',
           responses: {
-            200: { description: 'Service metrics' },
+            200: {
+              description: 'System metrics',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      timestamp: { type: 'string', format: 'date-time' },
+                      service: { type: 'string' },
+                      version: { type: 'string' },
+                      uptime: { type: 'number' },
+                      memory: { type: 'object' },
+                      cpu: { type: 'object' },
+                      environment: { type: 'string' },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
     },
     tags: [
-      { name: 'Authentication', description: 'Authentication endpoints' },
-      { name: 'Parts', description: 'Parts management endpoints' },
-      { name: 'Health', description: 'Health check endpoints' },
-      { name: 'Metrics', description: 'Metrics endpoints' },
+      { name: 'General', description: 'General API endpoints' },
+      { name: 'Monitoring', description: 'Health and metrics endpoints' },
     ],
   },
   apis: ['./src/routes/*.ts', './src/controllers/*.ts'],
