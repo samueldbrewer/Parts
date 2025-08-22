@@ -3,7 +3,7 @@
   "info": {
     "title": "Parts Inventory API",
     "version": "1.0.0",
-    "description": "A comprehensive RESTful API for managing parts inventory and catalog system",
+    "description": "A comprehensive RESTful API for managing parts inventory and catalog system.\n\n**⚠️ IMPORTANT**: This API requires a PostgreSQL database to be fully functional. Currently running without database - only /health and /metrics endpoints are operational. All other endpoints will return database connection errors.",
     "contact": {
       "name": "API Support",
       "email": "support@partsapi.com"
@@ -15,12 +15,12 @@
   },
   "servers": [
     {
-      "url": "http://localhost:3000/api/v1",
-      "description": "Development server"
+      "url": "https://parts.up.railway.app/api/v1",
+      "description": "Railway Production (No DB - Limited Functionality)"
     },
     {
-      "url": "https://api.partsapi.com/v1",
-      "description": "Production server"
+      "url": "http://localhost:3000/api/v1",
+      "description": "Development server"
     }
   ],
   "components": {
@@ -193,7 +193,8 @@
         "tags": [
           "Authentication"
         ],
-        "summary": "Register a new user",
+        "summary": "Register a new user (Requires Database)",
+        "description": "⚠️ This endpoint requires a database connection. Currently unavailable.",
         "requestBody": {
           "required": true,
           "content": {
@@ -277,7 +278,8 @@
         "tags": [
           "Authentication"
         ],
-        "summary": "Login user",
+        "summary": "Login user (Requires Database)",
+        "description": "⚠️ This endpoint requires a database connection. Currently unavailable.",
         "requestBody": {
           "required": true,
           "content": {
@@ -318,7 +320,8 @@
         "tags": [
           "Parts"
         ],
-        "summary": "Get all parts",
+        "summary": "Get all parts (Requires Database)",
+        "description": "⚠️ This endpoint requires a database connection. Currently unavailable.",
         "security": [
           {
             "bearerAuth": []
@@ -411,7 +414,8 @@
         "tags": [
           "Parts"
         ],
-        "summary": "Create a new part",
+        "summary": "Create a new part (Requires Database)",
+        "description": "⚠️ This endpoint requires a database connection. Currently unavailable.",
         "security": [
           {
             "bearerAuth": []
@@ -519,7 +523,8 @@
         "tags": [
           "Parts"
         ],
-        "summary": "Get part by ID",
+        "summary": "Get part by ID (Requires Database)",
+        "description": "⚠️ This endpoint requires a database connection. Currently unavailable.",
         "parameters": [
           {
             "name": "id",
@@ -543,7 +548,8 @@
         "tags": [
           "Parts"
         ],
-        "summary": "Update part",
+        "summary": "Update part (Requires Database)",
+        "description": "⚠️ This endpoint requires a database connection. Currently unavailable.",
         "security": [
           {
             "bearerAuth": []
@@ -594,7 +600,8 @@
         "tags": [
           "Parts"
         ],
-        "summary": "Delete part",
+        "summary": "Delete part (Requires Database)",
+        "description": "⚠️ This endpoint requires a database connection. Currently unavailable.",
         "security": [
           {
             "bearerAuth": []
@@ -634,7 +641,8 @@
         "tags": [
           "Health"
         ],
-        "summary": "Health check endpoint",
+        "summary": "✅ Health check endpoint (WORKING)",
+        "description": "This endpoint is fully functional and shows the service health status including database connectivity.",
         "responses": {
           "200": {
             "description": "Service is healthy"
@@ -650,7 +658,8 @@
         "tags": [
           "Metrics"
         ],
-        "summary": "Get service metrics",
+        "summary": "✅ Get service metrics (WORKING)",
+        "description": "This endpoint is fully functional and returns system metrics including CPU, memory, and uptime.",
         "responses": {
           "200": {
             "description": "Service metrics"

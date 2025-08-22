@@ -8,7 +8,7 @@ const options = {
     info: {
       title: 'Parts Inventory API',
       version: '1.0.0',
-      description: 'A comprehensive RESTful API for managing parts inventory and catalog system',
+      description: 'A comprehensive RESTful API for managing parts inventory and catalog system.\n\n**⚠️ IMPORTANT**: This API requires a PostgreSQL database to be fully functional. Currently running without database - only /health and /metrics endpoints are operational. All other endpoints will return database connection errors.',
       contact: {
         name: 'API Support',
         email: 'support@partsapi.com',
@@ -20,12 +20,12 @@ const options = {
     },
     servers: [
       {
-        url: 'http://localhost:3000/api/v1',
-        description: 'Development server',
+        url: 'https://parts.up.railway.app/api/v1',
+        description: 'Railway Production (No DB - Limited Functionality)',
       },
       {
-        url: 'https://api.partsapi.com/v1',
-        description: 'Production server',
+        url: 'http://localhost:3000/api/v1',
+        description: 'Development server',
       },
     ],
     components: {
@@ -99,7 +99,8 @@ const options = {
       '/auth/register': {
         post: {
           tags: ['Authentication'],
-          summary: 'Register a new user',
+          summary: 'Register a new user (Requires Database)',
+          description: '⚠️ This endpoint requires a database connection. Currently unavailable.',
           requestBody: {
             required: true,
             content: {
@@ -149,7 +150,8 @@ const options = {
       '/auth/login': {
         post: {
           tags: ['Authentication'],
-          summary: 'Login user',
+          summary: 'Login user (Requires Database)',
+          description: '⚠️ This endpoint requires a database connection. Currently unavailable.',
           requestBody: {
             required: true,
             content: {
@@ -175,7 +177,8 @@ const options = {
       '/parts': {
         get: {
           tags: ['Parts'],
-          summary: 'Get all parts',
+          summary: 'Get all parts (Requires Database)',
+          description: '⚠️ This endpoint requires a database connection. Currently unavailable.',
           security: [{ bearerAuth: [] }, { apiKeyAuth: [] }],
           parameters: [
             { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
@@ -212,7 +215,8 @@ const options = {
         },
         post: {
           tags: ['Parts'],
-          summary: 'Create a new part',
+          summary: 'Create a new part (Requires Database)',
+          description: '⚠️ This endpoint requires a database connection. Currently unavailable.',
           security: [{ bearerAuth: [] }, { apiKeyAuth: [] }],
           requestBody: {
             required: true,
@@ -256,7 +260,8 @@ const options = {
       '/parts/{id}': {
         get: {
           tags: ['Parts'],
-          summary: 'Get part by ID',
+          summary: 'Get part by ID (Requires Database)',
+          description: '⚠️ This endpoint requires a database connection. Currently unavailable.',
           parameters: [
             { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
           ],
@@ -267,7 +272,8 @@ const options = {
         },
         put: {
           tags: ['Parts'],
-          summary: 'Update part',
+          summary: 'Update part (Requires Database)',
+          description: '⚠️ This endpoint requires a database connection. Currently unavailable.',
           security: [{ bearerAuth: [] }, { apiKeyAuth: [] }],
           parameters: [
             { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
@@ -290,7 +296,8 @@ const options = {
         },
         delete: {
           tags: ['Parts'],
-          summary: 'Delete part',
+          summary: 'Delete part (Requires Database)',
+          description: '⚠️ This endpoint requires a database connection. Currently unavailable.',
           security: [{ bearerAuth: [] }, { apiKeyAuth: [] }],
           parameters: [
             { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
@@ -306,7 +313,8 @@ const options = {
       '/health': {
         get: {
           tags: ['Health'],
-          summary: 'Health check endpoint',
+          summary: '✅ Health check endpoint (WORKING)',
+          description: 'This endpoint is fully functional and shows the service health status including database connectivity.',
           responses: {
             200: { description: 'Service is healthy' },
             503: { description: 'Service is unhealthy' },
@@ -316,7 +324,8 @@ const options = {
       '/metrics': {
         get: {
           tags: ['Metrics'],
-          summary: 'Get service metrics',
+          summary: '✅ Get service metrics (WORKING)',
+          description: 'This endpoint is fully functional and returns system metrics including CPU, memory, and uptime.',
           responses: {
             200: { description: 'Service metrics' },
           },
