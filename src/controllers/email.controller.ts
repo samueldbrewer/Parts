@@ -179,6 +179,34 @@ class EmailController {
   };
 
   /**
+   * Manually retry email service initialization
+   */
+  retryInitialization = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      logger.info('Manual initialization retry requested');
+
+      await this.initializeEmailService();
+
+      const isReady = this.emailService?.isServiceReady() || false;
+
+      res.status(200).json({
+        success: true,
+        data: {
+          status: isReady ? 'initialized' : 'failed',
+          ready: isReady,
+          serviceInstance: !!this.emailService,
+          timestamp: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      logger.error('Manual initialization failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      next(error);
+    }
+  };
+
+  /**
    * Get email service health status
    */
   getHealth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
