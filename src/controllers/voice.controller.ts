@@ -15,7 +15,10 @@ class VoiceController {
       const userId = (req as any).user?.id || 'demo-user';
 
       const token = generateWebSocketToken(userId);
-      const wsUrl = `${req.protocol === 'https' ? 'wss' : 'ws'}://${req.get('host')}/api/v1/voice/realtime`;
+      // Check for forwarded protocol (Railway uses this)
+      const protocol = req.get('x-forwarded-proto') || req.protocol;
+      const wsProtocol = protocol === 'https' ? 'wss' : 'ws';
+      const wsUrl = `${wsProtocol}://${req.get('host')}/api/v1/voice/realtime`;
 
       res.json({
         success: true,
