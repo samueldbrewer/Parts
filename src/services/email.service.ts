@@ -1,6 +1,6 @@
-import nodemailer, { Transporter } from 'nodemailer';
+import nodemailer from 'nodemailer';
 import Imap from 'imap';
-import { simpleParser, ParsedMail } from 'mailparser';
+import { simpleParser } from 'mailparser';
 import { logger } from '../utils/logger';
 
 export interface EmailConfig {
@@ -16,6 +16,7 @@ export interface EmailConfig {
     port: number;
     user: string;
     pass: string;
+    tls: boolean;
   };
 }
 
@@ -38,263 +39,137 @@ export interface SendEmailResult {
 }
 
 export class EmailService {
-  private transporter: Transporter | null = null;
-  private imap: Imap | null = null;
-  private inbox: Email[] = [];
+  private transporter: nodemailer.Transporter;
+  private imap: Imap;
   private isInitialized = false;
+  private inbox: Email[] = [];
 
   constructor(private config: EmailConfig) {}
 
-  // Clean Railway environment variables (removes quotes)
+  // Helper function to clean Railway environment variables
   private cleanEnvVar(value?: string): string | undefined {
     if (!value) return value;
     return value.replace(/^["']|["']$/g, '');
   }
 
+  // CRITICAL: Non-blocking initialization for cloud deployment
   async initialize(): Promise<void> {
     try {
-      // Clean environment variables for Railway (remove quotes)
-      const cleanUser = this.cleanEnvVar(this.config.smtp.user);
-      const cleanPass = this.cleanEnvVar(this.config.smtp.pass);
+      logger.info('Initializing email service with proven configuration');
 
-      logger.info('Initializing single reusable SMTP transporter with connection pooling', {
-        host: this.config.smtp.host,
-        port: this.config.smtp.port,
-        cleanUserLength: cleanUser?.length || 0,
-        cleanPassLength: cleanPass?.length || 0,
-      });
-
-      // Create single reusable transporter with connection pooling
-      this.transporter = nodemailer.createTransport({
+      // Create SMTP transporter with connection pooling
+      this.transporter = nodemailer.createTransporter({
         service: 'gmail',
         host: this.config.smtp.host,
         port: this.config.smtp.port,
         secure: false,
         requireTLS: true,
         auth: {
-          user: cleanUser,
-          pass: cleanPass,
+          user: this.cleanEnvVar(this.config.smtp.user),
+          pass: this.cleanEnvVar(this.config.smtp.pass),
         },
         tls: {
-          rejectUnauthorized: false, // Critical for Railway
+          rejectUnauthorized: false, // CRITICAL for Railway/cloud
         },
-        // Railway-optimized timeouts
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 20000,
         // Connection pooling for efficiency
         pool: true,
         maxConnections: 5,
         maxMessages: 100,
+        // Cloud-optimized timeouts
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 20000,
       });
 
-      logger.info('Initializing IMAP configuration...', {
-        host: this.config.imap.host,
-        port: this.config.imap.port,
-        user: this.config.imap.user,
-      });
+      // Try SMTP verification but don't fail if it times out
+      try {
+        await this.transporter.verify();
+        logger.info('✅ SMTP server ready');
+      } catch (error) {
+        logger.warn('⚠️ SMTP verification failed, will attempt sends anyway:', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        // Don't throw - allow service to continue
+      }
 
-      // Initialize IMAP for receiving emails (lazy initialization)
+      // Initialize IMAP for inbox reading
       this.imap = new Imap({
-        user: this.config.imap.user,
-        password: this.config.imap.pass,
+        user: this.cleanEnvVar(this.config.imap.user),
+        password: this.cleanEnvVar(this.config.imap.pass),
         host: this.config.imap.host,
         port: this.config.imap.port,
-        tls: true,
+        tls: this.config.imap.tls,
         tlsOptions: { rejectUnauthorized: false },
-        connTimeout: 20000,
-        authTimeout: 10000,
       });
 
-      // Mark as ready immediately - no blocking verification
       this.isInitialized = true;
-      logger.info('Email service initialized with connection pooling - ready for sends');
+      logger.info('Email service initialized successfully');
     } catch (error) {
-      logger.error('Failed to initialize email service', {
+      logger.error('Email service initialization failed:', {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
-      throw error;
+      // Don't throw - allow degraded functionality
     }
   }
 
+  // Simple, reliable send method
   async sendEmail(
     to: string,
     subject: string,
     text: string,
     html?: string,
   ): Promise<SendEmailResult> {
-    if (!this.isInitialized || !this.transporter) {
-      throw new Error('Email service not initialized');
+    if (!this.isInitialized) {
+      return {
+        success: false,
+        error: 'Email service not initialized',
+      };
     }
 
-    const maxRetries = 2;
-
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        // Direct send using the pooled connection - no verification
-        const info = await this.transporter.sendMail({
-          from: this.config.smtp.from,
-          to,
-          subject,
-          text,
-          html: html || text,
-        });
-
-        logger.info('Email sent successfully', {
-          to,
-          subject,
-          messageId: info.messageId,
-          attempt: attempt + 1,
-        });
-
-        return {
-          success: true,
-          messageId: info.messageId,
-          response: info.response,
-        };
-      } catch (error) {
-        logger.error(`Send attempt ${attempt + 1} failed:`, {
-          error: error instanceof Error ? error.message : 'Unknown error',
-          to,
-          subject,
-        });
-
-        if (attempt === maxRetries) {
-          return {
-            success: false,
-            error: `Failed to send email after ${maxRetries + 1} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          };
-        }
-
-        // Simple 1 second wait between retries
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
-    }
-
-    // This should never be reached, but TypeScript requires it
-    return {
-      success: false,
-      error: 'Unexpected error in send retry logic',
-    };
-  }
-
-  async fetchEmails(): Promise<Email[]> {
-    if (!this.imap) {
-      throw new Error('IMAP not initialized');
-    }
-
-    return new Promise((resolve, reject) => {
-      const emails = new Map<number, Email>();
-      let expectedCount = 0;
-      let processedCount = 0;
-
-      this.imap!.once('ready', () => {
-        this.imap!.openBox('INBOX', false, (err: any, box: any) => {
-          if (err) {
-            logger.error('Failed to open INBOX', { error: err.message });
-            reject(err);
-            return;
-          }
-
-          expectedCount = box.messages.total;
-          logger.info('Fetching emails from inbox', { totalEmails: expectedCount });
-
-          if (expectedCount === 0) {
-            this.imap!.end();
-            resolve([]);
-            return;
-          }
-
-          const f = this.imap!.seq.fetch('1:*', {
-            bodies: '',
-            struct: true,
-          });
-
-          f.on('message', (msg, seqno) => {
-            msg.on('body', (stream: any) => {
-              simpleParser(stream, (err: any, parsed: ParsedMail) => {
-                if (err) {
-                  logger.warn('Failed to parse email', { seqno, error: err.message });
-                  processedCount++;
-                  return;
-                }
-
-                // Helper function to extract email address text
-                const getAddressText = (addr: any): string => {
-                  if (!addr) return 'Unknown';
-                  if (typeof addr === 'string') return addr;
-                  if (Array.isArray(addr))
-                    return addr.map((a) => a.text || a.address || 'Unknown').join(', ');
-                  return addr.text || addr.address || 'Unknown';
-                };
-
-                const emailData: Email = {
-                  id: seqno,
-                  from: getAddressText(parsed.from),
-                  to: getAddressText(parsed.to),
-                  subject: parsed.subject || 'No Subject',
-                  text: parsed.text || '',
-                  html: parsed.html?.toString() || '',
-                  date: parsed.date || new Date(),
-                  attachments: parsed.attachments?.length || 0,
-                };
-
-                emails.set(seqno, emailData);
-                processedCount++;
-
-                if (processedCount === expectedCount) {
-                  this.imap!.end();
-                  const emailArray = Array.from(emails.values());
-                  emailArray.sort(
-                    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-                  );
-                  this.inbox = emailArray;
-                  logger.info('Successfully fetched emails', { count: emailArray.length });
-                  resolve(emailArray);
-                }
-              });
-            });
-          });
-
-          f.once('error', (err) => {
-            logger.error('IMAP fetch error', { error: err.message });
-            reject(err);
-          });
-
-          // Timeout fallback after 10 seconds
-          setTimeout(() => {
-            if (emails.size > 0) {
-              this.imap!.end();
-              const emailArray = Array.from(emails.values());
-              emailArray.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-              this.inbox = emailArray;
-              logger.info('Fetched emails with timeout', { count: emailArray.length });
-              resolve(emailArray);
-            } else {
-              reject(new Error('Timeout: No emails fetched'));
-            }
-          }, 10000);
-        });
+    try {
+      const info = await this.transporter.sendMail({
+        from: this.config.smtp.from,
+        to,
+        subject,
+        text,
+        html: html || text,
       });
 
-      this.imap!.once('error', (err: any) => {
-        logger.error('IMAP connection error', { error: err.message });
-        reject(err);
+      logger.info('Email sent successfully', {
+        to,
+        subject,
+        messageId: info.messageId,
       });
 
-      this.imap!.connect();
-    });
+      return {
+        success: true,
+        messageId: info.messageId,
+        response: info.response,
+      };
+    } catch (error) {
+      logger.error('Email send failed:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        to,
+        subject,
+      });
+      return {
+        success: false,
+        error: `Failed to send email: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      };
+    }
   }
 
+  // Inbox reading implementation
   async getInbox(limit = 10): Promise<Email[]> {
     try {
       if (this.inbox.length > 0) {
         return this.inbox.slice(0, limit);
       }
+
       const emails = await this.fetchEmails();
       return emails.slice(0, limit);
     } catch (error) {
-      logger.error('Get inbox error', {
+      logger.error('Get inbox error:', {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       return [];
@@ -306,11 +181,92 @@ export class EmailService {
       const emails = await this.fetchEmails();
       return emails;
     } catch (error) {
-      logger.error('Refresh inbox error', {
+      logger.error('Refresh inbox error:', {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       return this.inbox;
     }
+  }
+
+  private fetchEmails(): Promise<Email[]> {
+    return new Promise((resolve, reject) => {
+      const emails = new Map<number, Email>();
+      let expectedCount = 0;
+      let processedCount = 0;
+
+      this.imap.once('ready', () => {
+        this.imap.openBox('INBOX', false, (err: any, box: any) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+
+          expectedCount = box.messages.total;
+
+          if (expectedCount === 0) {
+            this.imap.end();
+            resolve([]);
+            return;
+          }
+
+          const f = this.imap.seq.fetch('1:*', {
+            bodies: '',
+            struct: true,
+          });
+
+          f.on('message', (msg, seqno) => {
+            msg.on('body', (stream: any) => {
+              simpleParser(stream, (err: any, parsed: any) => {
+                if (err) {
+                  processedCount++;
+                  return;
+                }
+
+                const emailData: Email = {
+                  id: seqno,
+                  from: parsed.from?.text || 'Unknown',
+                  to: parsed.to?.text || 'Unknown',
+                  subject: parsed.subject || 'No Subject',
+                  text: parsed.text || '',
+                  html: parsed.html?.toString() || '',
+                  date: parsed.date || new Date(),
+                  attachments: parsed.attachments?.length || 0,
+                };
+
+                emails.set(seqno, emailData);
+                processedCount++;
+
+                if (processedCount === expectedCount) {
+                  this.imap.end();
+                  const emailArray = Array.from(emails.values());
+                  emailArray.sort(
+                    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+                  );
+                  this.inbox = emailArray;
+                  resolve(emailArray);
+                }
+              });
+            });
+          });
+
+          f.once('error', reject);
+
+          // Timeout fallback
+          setTimeout(() => {
+            if (emails.size > 0) {
+              this.imap.end();
+              const emailArray = Array.from(emails.values());
+              emailArray.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+              this.inbox = emailArray;
+              resolve(emailArray);
+            }
+          }, 5000);
+        });
+      });
+
+      this.imap.once('error', reject);
+      this.imap.connect();
+    });
   }
 
   isServiceReady(): boolean {

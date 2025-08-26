@@ -11,50 +11,43 @@ class EmailController {
   }
 
   private async initializeEmailService(): Promise<void> {
-    logger.info('Starting email service initialization', {
-      hasUser: !!config.email.user,
-      hasPass: !!config.email.pass,
-      user: config.email.user,
-      smtpHost: config.email.smtp.host,
-      smtpPort: config.email.smtp.port,
-    });
+    // Helper function to clean Railway environment variables
+    const cleanEnvVar = (value?: string): string | undefined => {
+      if (!value) return value;
+      return value.replace(/^["']|["']$/g, '');
+    };
 
-    if (!config.email.user || !config.email.pass) {
-      logger.warn('Email service not configured - missing credentials', {
-        user: config.email.user,
-        passLength: config.email.pass?.length || 0,
-      });
-      return;
-    }
+    const emailUser = cleanEnvVar(config.email.user);
+    const emailPass = cleanEnvVar(config.email.pass);
 
-    try {
-      logger.info('Creating email service instance...');
+    if (emailUser && emailPass) {
+      logger.info('Initializing email service for:', emailUser);
 
       this.emailService = new EmailService({
         smtp: {
-          host: config.email.smtp.host,
-          port: config.email.smtp.port,
-          user: config.email.user,
-          pass: config.email.pass,
-          from: config.email.from,
+          host: cleanEnvVar(config.email.smtp.host) || 'smtp.gmail.com',
+          port: config.email.smtp.port || 587,
+          user: emailUser,
+          pass: emailPass,
+          from: cleanEnvVar(config.email.from) || emailUser,
         },
         imap: {
-          host: config.email.imap.host,
-          port: config.email.imap.port,
-          user: config.email.user,
-          pass: config.email.pass,
+          host: cleanEnvVar(config.email.imap.host) || 'imap.gmail.com',
+          port: config.email.imap.port || 993,
+          tls: true,
+          user: emailUser,
+          pass: emailPass,
         },
       });
 
-      logger.info('Initializing email service...');
-      await this.emailService.initialize();
-      logger.info('Email service initialized successfully');
-    } catch (error) {
-      logger.error('Failed to initialize email service', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
+      // Non-blocking initialization
+      this.emailService.initialize().catch((err) => {
+        logger.error('Failed to initialize email service:', err);
+        logger.error('Email service will continue but may have issues');
+        // Don't set emailService to null - allow degraded functionality
       });
-      this.emailService = null;
+    } else {
+      logger.warn('Email service not configured - missing credentials');
     }
   }
 
@@ -62,15 +55,15 @@ class EmailController {
    * Send an email
    */
   sendEmail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      if (!this.emailService?.isServiceReady()) {
-        res.status(503).json({
-          success: false,
-          error: 'Email service not configured or not ready',
-        });
-        return;
-      }
+    if (!this.emailService) {
+      res.status(503).json({
+        success: false,
+        error: 'Email service not configured',
+      });
+      return;
+    }
 
+    try {
       const { to, subject, text, html } = req.body;
 
       if (!to || !subject || !text) {
@@ -82,7 +75,7 @@ class EmailController {
       }
 
       // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;
       if (!emailRegex.test(to)) {
         res.status(400).json({
           success: false,
@@ -108,7 +101,7 @@ class EmailController {
         });
       }
     } catch (error) {
-      logger.error('Email send error', {
+      logger.error('Email send error:', {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       next(error);
@@ -119,16 +112,16 @@ class EmailController {
    * Get inbox emails (cached)
    */
   getInbox = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      if (!this.emailService?.isServiceReady()) {
-        res.status(503).json({
-          success: false,
-          error: 'Email service not configured or not ready',
-        });
-        return;
-      }
+    if (!this.emailService) {
+      res.status(503).json({
+        success: false,
+        error: 'Email service not configured',
+      });
+      return;
+    }
 
-      const limit = Math.min(parseInt(req.query.limit as string) || 10, 50); // Max 50 emails
+    try {
+      const limit = Math.min(parseInt(req.query.limit as string) || 10, 50);
       const emails = await this.emailService.getInbox(limit);
 
       res.status(200).json({
@@ -140,7 +133,7 @@ class EmailController {
         },
       });
     } catch (error) {
-      logger.error('Email inbox error', {
+      logger.error('Email inbox error:', {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       next(error);
@@ -151,15 +144,15 @@ class EmailController {
    * Refresh inbox (force fetch)
    */
   refreshInbox = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      if (!this.emailService?.isServiceReady()) {
-        res.status(503).json({
-          success: false,
-          error: 'Email service not configured or not ready',
-        });
-        return;
-      }
+    if (!this.emailService) {
+      res.status(503).json({
+        success: false,
+        error: 'Email service not configured',
+      });
+      return;
+    }
 
+    try {
       const emails = await this.emailService.refreshInbox();
 
       res.status(200).json({
@@ -171,74 +164,7 @@ class EmailController {
         },
       });
     } catch (error) {
-      logger.error('Email refresh error', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-      next(error);
-    }
-  };
-
-  /**
-   * Manually retry email service initialization
-   */
-  retryInitialization = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      logger.info('Manual initialization retry requested');
-
-      await this.initializeEmailService();
-
-      const isReady = this.emailService?.isServiceReady() || false;
-
-      res.status(200).json({
-        success: true,
-        data: {
-          status: isReady ? 'initialized' : 'failed',
-          ready: isReady,
-          serviceInstance: !!this.emailService,
-          timestamp: new Date().toISOString(),
-        },
-      });
-    } catch (error) {
-      logger.error('Manual initialization failed', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-      next(error);
-    }
-  };
-
-  /**
-   * Debug email environment variables (temporary)
-   */
-  debugEnv = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const cleanEnvVar = (value?: string): string | undefined => {
-        if (!value) return value;
-        return value.replace(/^["']|["']$/g, '');
-      };
-
-      const cleanUser = cleanEnvVar(config.email.user);
-      const cleanPass = cleanEnvVar(config.email.pass);
-
-      res.status(200).json({
-        success: true,
-        data: {
-          originalUser: config.email.user,
-          cleanedUser: cleanUser,
-          userLength: cleanUser?.length,
-          passLength: cleanPass?.length,
-          userHex: Buffer.from(cleanUser || '').toString('hex'),
-          passHex:
-            Buffer.from(cleanPass || '')
-              .toString('hex')
-              .substring(0, 20) + '...',
-          hasQuotes: {
-            user: config.email.user?.includes('"') || config.email.user?.includes("'"),
-            pass: config.email.pass?.includes('"') || config.email.pass?.includes("'"),
-          },
-        },
-      });
-    } catch (error) {
-      logger.error('Debug env error', {
+      logger.error('Email refresh error:', {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       next(error);
@@ -255,29 +181,14 @@ class EmailController {
       res.status(200).json({
         success: true,
         data: {
-          status: isReady ? 'healthy' : 'unavailable',
+          status: isReady ? 'healthy' : 'disabled',
           configured: !!this.emailService,
           ready: isReady,
-          config: {
-            smtpHost: config.email.smtp.host,
-            smtpPort: config.email.smtp.port,
-            imapHost: config.email.imap.host,
-            imapPort: config.email.imap.port,
-            fromEmail: config.email.from,
-            hasUser: !!config.email.user,
-            hasPass: !!config.email.pass,
-            userLength: config.email.user?.length || 0,
-            passLength: config.email.pass?.length || 0,
-          },
-          diagnostics: {
-            serviceInstance: !!this.emailService,
-            initializationAttempted: true,
-            timestamp: new Date().toISOString(),
-          },
+          service: this.emailService ? 'active' : 'disabled',
         },
       });
     } catch (error) {
-      logger.error('Email health check error', {
+      logger.error('Email health check error:', {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       next(error);

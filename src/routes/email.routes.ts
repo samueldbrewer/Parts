@@ -12,12 +12,6 @@ router.use(apiLimiter);
 // Email health check
 router.get('/health', emailController.getHealth);
 
-// Debug environment variables (temporary)
-router.get('/debug', emailController.debugEnv);
-
-// Manual initialization retry
-router.post('/retry-init', emailController.retryInitialization);
-
 // Send email
 router.post(
   '/send',

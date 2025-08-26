@@ -143,10 +143,16 @@ export const config = {
     smtp: {
       host: envVars.SMTP_HOST,
       port: envVars.SMTP_PORT,
+      user: envVars.EMAIL_USER,
+      pass: envVars.EMAIL_PASS,
+      from: envVars.EMAIL_FROM,
     },
     imap: {
       host: envVars.IMAP_HOST,
       port: envVars.IMAP_PORT,
+      user: envVars.EMAIL_USER,
+      pass: envVars.EMAIL_PASS,
+      tls: true,
     },
   },
 };
