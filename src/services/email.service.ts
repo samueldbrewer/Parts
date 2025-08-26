@@ -60,9 +60,13 @@ export class EmailService {
         host: this.config.smtp.host,
         port: this.config.smtp.port,
         secure: false,
+        requireTLS: true,
         auth: {
           user: this.config.smtp.user,
           pass: this.config.smtp.pass,
+        },
+        tls: {
+          rejectUnauthorized: false, // Critical for Railway
         },
         // Railway-optimized timeouts
         connectionTimeout: 15000,
@@ -139,53 +143,89 @@ export class EmailService {
     html?: string,
     retries = 3,
   ): Promise<SendEmailResult> {
-    for (let i = 0; i < retries; i++) {
-      try {
-        const mailOptions = {
-          from: this.config.smtp.from,
-          to,
-          subject,
-          text,
-          html: html || text,
-        };
+    // Multiple configuration fallbacks for Railway reliability
+    const configs = [
+      {
+        service: 'gmail',
+        port: 587,
+        secure: false,
+        requireTLS: true,
+        tls: { rejectUnauthorized: false },
+      },
+      {
+        service: 'gmail',
+        port: 465,
+        secure: true,
+        tls: { rejectUnauthorized: false },
+      },
+      {
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
+        requireTLS: true,
+        tls: { rejectUnauthorized: false },
+      },
+    ];
 
-        const info = await this.transporter!.sendMail(mailOptions);
+    for (let configIndex = 0; configIndex < configs.length; configIndex++) {
+      for (let i = 0; i < retries; i++) {
+        try {
+          // Create transporter with current config
+          const transporter = nodemailer.createTransport({
+            ...configs[configIndex],
+            auth: {
+              user: this.config.smtp.user,
+              pass: this.config.smtp.pass,
+            },
+            connectionTimeout: 15000,
+            greetingTimeout: 15000,
+            socketTimeout: 30000,
+          });
 
-        logger.info('Email sent successfully', {
-          to,
-          subject,
-          messageId: info.messageId,
-          attempt: i + 1,
-        });
-
-        return {
-          success: true,
-          messageId: info.messageId,
-          response: info.response,
-        };
-      } catch (error) {
-        logger.error(`Send attempt ${i + 1} failed:`, {
-          error: error instanceof Error ? error.message : 'Unknown error',
-          to,
-          subject,
-        });
-
-        if (i === retries - 1) {
-          return {
-            success: false,
-            error: `Failed to send email after ${retries} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          const mailOptions = {
+            from: this.config.smtp.from,
+            to,
+            subject,
+            text,
+            html: html || text,
           };
-        }
 
-        // Wait before retry with exponential backoff
-        await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
+          const info = await transporter.sendMail(mailOptions);
+
+          logger.info('Email sent successfully', {
+            to,
+            subject,
+            messageId: info.messageId,
+            configIndex: configIndex + 1,
+            attempt: i + 1,
+          });
+
+          return {
+            success: true,
+            messageId: info.messageId,
+            response: info.response,
+          };
+        } catch (error) {
+          logger.error(`Config ${configIndex + 1}, attempt ${i + 1} failed:`, {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            to,
+            subject,
+          });
+
+          if (i === retries - 1) {
+            logger.warn(`All retries failed for config ${configIndex + 1}, trying next config`);
+            break; // Move to next config
+          }
+
+          // Wait before retry with exponential backoff
+          await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
+        }
       }
     }
 
-    // This should never be reached, but TypeScript requires it
     return {
       success: false,
-      error: 'Unexpected error in send retry logic',
+      error: 'Failed to send email with all configurations and retries',
     };
   }
 
