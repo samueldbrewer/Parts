@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import voiceRoutes from './voice.routes';
+import adminRoutes from './admin.routes';
 
 const router = Router();
 
@@ -10,6 +11,9 @@ const router = Router();
 
 // Voice endpoints
 router.use('/voice', voiceRoutes);
+
+// Admin endpoints
+router.use('/admin', adminRoutes);
 
 // Welcome endpoint
 router.get('/', (req, res) => {
