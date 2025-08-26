@@ -39,8 +39,8 @@ export interface SendEmailResult {
 }
 
 export class EmailService {
-  private transporter: nodemailer.Transporter;
-  private imap: Imap;
+  private transporter!: nodemailer.Transporter;
+  private imap!: Imap;
   private isInitialized = false;
   private inbox: Email[] = [];
 
@@ -58,7 +58,7 @@ export class EmailService {
       logger.info('Initializing email service with proven configuration');
 
       // Create SMTP transporter with connection pooling
-      this.transporter = nodemailer.createTransporter({
+      this.transporter = nodemailer.createTransport({
         service: 'gmail',
         host: this.config.smtp.host,
         port: this.config.smtp.port,
@@ -94,8 +94,8 @@ export class EmailService {
 
       // Initialize IMAP for inbox reading
       this.imap = new Imap({
-        user: this.cleanEnvVar(this.config.imap.user),
-        password: this.cleanEnvVar(this.config.imap.pass),
+        user: this.cleanEnvVar(this.config.imap.user) || '',
+        password: this.cleanEnvVar(this.config.imap.pass) || '',
         host: this.config.imap.host,
         port: this.config.imap.port,
         tls: this.config.imap.tls,
