@@ -30,7 +30,8 @@ class VoiceController {
           supportedFormats: ['pcm16', 'g711_ulaw', 'g711_alaw'],
           defaultFormat: 'pcm16',
           sampleRate: 24000,
-          instructions: 'Connect to the WebSocket endpoint with the provided token',
+          instructions:
+            'Connect to the WebSocket endpoint with the provided token. You have access to internet search, weather, news, stock prices, and current time through function calls.',
         },
       });
     } catch (error) {

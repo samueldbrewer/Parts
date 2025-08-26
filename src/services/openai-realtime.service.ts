@@ -1,6 +1,7 @@
 import WebSocket from 'ws';
 import { EventEmitter } from 'events';
 import { logger } from '../utils/logger';
+import { FunctionToolsService } from './function-tools.service';
 
 export interface RealtimeConfig {
   apiKey: string;
@@ -108,7 +109,16 @@ export class OpenAIRealtimeService extends EventEmitter {
       session: {
         modalities: ['text', 'audio'],
         voice: this.config.voice || 'alloy',
-        instructions: this.config.instructions || 'You are a helpful assistant.',
+        instructions:
+          this.config.instructions ||
+          `You are a helpful AI assistant with access to real-time information. You can:
+- Search the internet for current information
+- Get weather updates for any location
+- Find latest news on topics
+- Look up stock prices
+- Get current date and time
+
+When users ask for current information, use your function calling capabilities to provide accurate, up-to-date answers. Be conversational and natural in your responses.`,
         input_audio_format: this.config.inputAudioFormat || 'pcm16',
         output_audio_format: this.config.outputAudioFormat || 'pcm16',
         turn_detection:
@@ -123,7 +133,7 @@ export class OpenAIRealtimeService extends EventEmitter {
         input_audio_transcription: this.config.inputAudioTranscription || {
           model: 'whisper-1',
         },
-        tools: this.config.tools || [],
+        tools: this.config.tools || FunctionToolsService.getAvailableTools(),
         tool_choice: 'auto',
         temperature: 0.8,
         max_response_output_tokens: 4096,
@@ -132,6 +142,57 @@ export class OpenAIRealtimeService extends EventEmitter {
 
     this.ws.send(JSON.stringify(sessionUpdate));
     logger.debug('Session update sent', { sessionId: this.session?.id });
+  }
+
+  private async handleFunctionCall(message: any): Promise<void> {
+    try {
+      const callId = message.call_id;
+      const functionName = message.name;
+      const args = JSON.parse(message.arguments || '{}');
+
+      logger.info('Executing function call', {
+        callId,
+        functionName,
+        args,
+        sessionId: this.session?.id,
+      });
+
+      // Execute the function
+      const result = await FunctionToolsService.executeFunction(functionName, args);
+
+      // Send the result back to OpenAI
+      const functionResult = {
+        type: 'conversation.item.create',
+        item: {
+          type: 'function_call_output',
+          call_id: callId,
+          output: JSON.stringify(result.data || { error: result.error }),
+        },
+      };
+
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify(functionResult));
+
+        // Trigger response generation
+        const responseCreate = {
+          type: 'response.create',
+        };
+        this.ws.send(JSON.stringify(responseCreate));
+      }
+
+      logger.info('Function call completed', {
+        callId,
+        functionName,
+        success: result.success,
+        sessionId: this.session?.id,
+      });
+    } catch (error) {
+      logger.error('Function call execution failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        message,
+        sessionId: this.session?.id,
+      });
+    }
   }
 
   private handleMessage(data: WebSocket.Data): void {
@@ -206,6 +267,8 @@ export class OpenAIRealtimeService extends EventEmitter {
 
         case 'response.function_call_arguments.done':
           this.emit('response.function_call_arguments.done', message);
+          // Execute the function call
+          this.handleFunctionCall(message);
           break;
 
         case 'error':
