@@ -207,6 +207,45 @@ class EmailController {
   };
 
   /**
+   * Debug email environment variables (temporary)
+   */
+  debugEnv = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const cleanEnvVar = (value?: string): string | undefined => {
+        if (!value) return value;
+        return value.replace(/^["']|["']$/g, '');
+      };
+
+      const cleanUser = cleanEnvVar(config.email.user);
+      const cleanPass = cleanEnvVar(config.email.pass);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          originalUser: config.email.user,
+          cleanedUser: cleanUser,
+          userLength: cleanUser?.length,
+          passLength: cleanPass?.length,
+          userHex: Buffer.from(cleanUser || '').toString('hex'),
+          passHex:
+            Buffer.from(cleanPass || '')
+              .toString('hex')
+              .substring(0, 20) + '...',
+          hasQuotes: {
+            user: config.email.user?.includes('"') || config.email.user?.includes("'"),
+            pass: config.email.pass?.includes('"') || config.email.pass?.includes("'"),
+          },
+        },
+      });
+    } catch (error) {
+      logger.error('Debug env error', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      next(error);
+    }
+  };
+
+  /**
    * Get email service health status
    */
   getHealth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
