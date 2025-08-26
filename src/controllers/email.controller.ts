@@ -11,12 +11,25 @@ class EmailController {
   }
 
   private async initializeEmailService(): Promise<void> {
+    logger.info('Starting email service initialization', {
+      hasUser: !!config.email.user,
+      hasPass: !!config.email.pass,
+      user: config.email.user,
+      smtpHost: config.email.smtp.host,
+      smtpPort: config.email.smtp.port,
+    });
+
     if (!config.email.user || !config.email.pass) {
-      logger.warn('Email service not configured - missing credentials');
+      logger.warn('Email service not configured - missing credentials', {
+        user: config.email.user,
+        passLength: config.email.pass?.length || 0,
+      });
       return;
     }
 
     try {
+      logger.info('Creating email service instance...');
+
       this.emailService = new EmailService({
         smtp: {
           host: config.email.smtp.host,
@@ -33,11 +46,13 @@ class EmailController {
         },
       });
 
+      logger.info('Initializing email service...');
       await this.emailService.initialize();
       logger.info('Email service initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize email service', {
         error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
       });
       this.emailService = null;
     }
@@ -182,6 +197,15 @@ class EmailController {
             imapHost: config.email.imap.host,
             imapPort: config.email.imap.port,
             fromEmail: config.email.from,
+            hasUser: !!config.email.user,
+            hasPass: !!config.email.pass,
+            userLength: config.email.user?.length || 0,
+            passLength: config.email.pass?.length || 0,
+          },
+          diagnostics: {
+            serviceInstance: !!this.emailService,
+            initializationAttempted: true,
+            timestamp: new Date().toISOString(),
           },
         },
       });

@@ -47,9 +47,14 @@ export class EmailService {
 
   async initialize(): Promise<void> {
     try {
+      logger.info('Initializing SMTP transporter...', {
+        host: this.config.smtp.host,
+        port: this.config.smtp.port,
+        user: this.config.smtp.user,
+      });
+
       // Initialize SMTP transporter for sending emails
       this.transporter = nodemailer.createTransport({
-        service: 'gmail',
         host: this.config.smtp.host,
         port: this.config.smtp.port,
         secure: false,
@@ -61,17 +66,32 @@ export class EmailService {
         tls: {
           rejectUnauthorized: false,
         },
-      });
+        connectionTimeout: 30000, // 30 second timeout
+        greetingTimeout: 10000, // 10 second greeting timeout
+      } as any);
 
-      // Verify SMTP connection
-      await this.transporter!.verify();
+      logger.info('Verifying SMTP connection...');
+      // Verify SMTP connection with timeout
+      await Promise.race([
+        this.transporter!.verify(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('SMTP verification timeout')), 20000),
+        ),
+      ]);
       logger.info('SMTP server is ready to send emails', {
         host: this.config.smtp.host,
         port: this.config.smtp.port,
         user: this.config.smtp.user,
       });
 
-      // Initialize IMAP for receiving emails
+      logger.info('Initializing IMAP configuration...', {
+        host: this.config.imap.host,
+        port: this.config.imap.port,
+        user: this.config.imap.user,
+      });
+
+      // Initialize IMAP for receiving emails (lazy initialization)
+      // We don't test the connection here to avoid blocking initialization
       this.imap = new Imap({
         user: this.config.imap.user,
         password: this.config.imap.pass,
@@ -79,10 +99,12 @@ export class EmailService {
         port: this.config.imap.port,
         tls: true,
         tlsOptions: { rejectUnauthorized: false },
+        connTimeout: 20000, // 20 second connection timeout
+        authTimeout: 10000, // 10 second auth timeout
       });
 
       this.isInitialized = true;
-      logger.info('Email service initialized successfully');
+      logger.info('Email service initialized successfully - SMTP verified, IMAP configured');
     } catch (error) {
       logger.error('Failed to initialize email service', {
         error: error instanceof Error ? error.message : 'Unknown error',

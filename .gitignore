@@ -75,4 +75,6 @@ docker-compose.override.yml
 # Local test files
 voice-test.html
 voice-stream-demo.html
+email-demo.html
 test-voice-local.sh
+test-email-api.sh
