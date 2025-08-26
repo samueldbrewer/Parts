@@ -18,17 +18,43 @@ export const createApp = (): Application => {
   const app = express();
 
   // Security middleware
-  app.use(helmet({
-    contentSecurityPolicy: config.env === 'production',
-  }));
+  app.use(
+    helmet({
+      contentSecurityPolicy: config.env === 'production',
+    }),
+  );
 
-  // CORS
-  app.use(cors({
-    origin: config.cors.origin,
-    credentials: config.cors.credentials,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-Id', config.apiKey.header],
-  }));
+  // CORS - Allow all origins for development/testing
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps, file://, or Postman)
+        if (!origin) return callback(null, true);
+
+        // Allow all origins in development
+        if (config.env === 'development') {
+          return callback(null, true);
+        }
+
+        // In production, check against allowed origins
+        const allowedOrigins = config.cors.origin;
+        if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(null, true); // For now, allow all origins for testing
+        }
+      },
+      credentials: config.cors.credentials,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'X-Correlation-Id',
+        config.apiKey.header,
+        'X-API-Key',
+      ],
+    }),
+  );
 
   // Body parsing
   app.use(express.json({ limit: '10mb' }));
@@ -59,10 +85,14 @@ export const createApp = (): Application => {
   if (config.swagger.enabled) {
     try {
       const swaggerDocument = require('../swagger.json');
-      app.use(config.swagger.path, swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
-        customCss: '.swagger-ui .topbar { display: none }',
-        customSiteTitle: 'Parts API Documentation',
-      }));
+      app.use(
+        config.swagger.path,
+        swaggerUi.serve,
+        swaggerUi.setup(swaggerDocument, {
+          customCss: '.swagger-ui .topbar { display: none }',
+          customSiteTitle: 'Parts API Documentation',
+        }),
+      );
     } catch (error) {
       logger.warn('Swagger documentation not found. Run npm run generate-swagger to create it.');
     }

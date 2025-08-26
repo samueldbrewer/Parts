@@ -71,3 +71,7 @@ docker-compose.override.yml
 
 # Husky
 .husky/_/
+
+# Local test files
+voice-test.html
+test-voice-local.sh
