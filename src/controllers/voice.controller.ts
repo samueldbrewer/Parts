@@ -8,7 +8,7 @@ class VoiceController {
   /**
    * Get WebSocket connection token for voice endpoint
    */
-  async getConnectionToken(req: Request, res: Response, next: NextFunction): Promise<void> {
+  getConnectionToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       // In production, you'd get userId from authenticated session
       // For now, we'll use a dummy user ID or from request
@@ -33,12 +33,12 @@ class VoiceController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
   /**
    * Get voice session history for a user
    */
-  async getSessionHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
+  getSessionHistory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = (req as any).user?.id || 'demo-user';
       const { limit = 10, offset = 0, status } = req.query;
@@ -87,12 +87,12 @@ class VoiceController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
   /**
    * Get specific voice session details
    */
-  async getSessionDetails(req: Request, res: Response, next: NextFunction): Promise<void> {
+  getSessionDetails = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { sessionId } = req.params;
       const userId = (req as any).user?.id || 'demo-user';
@@ -138,12 +138,12 @@ class VoiceController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
   /**
    * Get usage statistics
    */
-  async getUsageStats(req: Request, res: Response, next: NextFunction): Promise<void> {
+  getUsageStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = (req as any).user?.id || 'demo-user';
       const { period = '7d' } = req.query;
@@ -219,12 +219,12 @@ class VoiceController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
   /**
    * Health check for voice service
    */
-  async healthCheck(req: Request, res: Response, next: NextFunction): Promise<void> {
+  healthCheck = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const voiceHandler = (req.app as any).voiceHandler;
       const activeSessions = voiceHandler?.getActiveSessions() || 0;
@@ -244,18 +244,18 @@ class VoiceController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  private calculateSessionCost(session: any): number {
+  private calculateSessionCost = (session: any): number => {
     const textInputCost = (session.inputTokens / 1000000) * 5;
     const textOutputCost = (session.outputTokens / 1000000) * 20;
     const audioInputCost = (session.inputAudioTokens / 1000000) * 100;
     const audioOutputCost = (session.outputAudioTokens / 1000000) * 200;
 
     return textInputCost + textOutputCost + audioInputCost + audioOutputCost;
-  }
+  };
 
-  private getStartDateFromPeriod(period: string): Date {
+  private getStartDateFromPeriod = (period: string): Date => {
     const now = new Date();
     switch (period) {
       case '1d':
@@ -269,7 +269,7 @@ class VoiceController {
       default:
         return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     }
-  }
+  };
 }
 
 export const voiceController = new VoiceController();
