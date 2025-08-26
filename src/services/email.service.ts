@@ -46,12 +46,29 @@ export class EmailService {
 
   constructor(private config: EmailConfig) {}
 
+  // Clean Railway environment variables (removes quotes)
+  private cleanEnvVar(value?: string): string | undefined {
+    if (!value) return value;
+    return value.replace(/^["']|["']$/g, '');
+  }
+
   async initialize(): Promise<void> {
     try {
       logger.info('Initializing SMTP transporter...', {
         host: this.config.smtp.host,
         port: this.config.smtp.port,
         user: this.config.smtp.user,
+      });
+
+      // Clean environment variables for Railway (remove quotes)
+      const cleanUser = this.cleanEnvVar(this.config.smtp.user);
+      const cleanPass = this.cleanEnvVar(this.config.smtp.pass);
+
+      logger.info('Using cleaned credentials', {
+        originalUserLength: this.config.smtp.user?.length || 0,
+        cleanUserLength: cleanUser?.length || 0,
+        originalPassLength: this.config.smtp.pass?.length || 0,
+        cleanPassLength: cleanPass?.length || 0,
       });
 
       // Initialize SMTP transporter for sending emails - Railway-friendly config
@@ -62,8 +79,8 @@ export class EmailService {
         secure: false,
         requireTLS: true,
         auth: {
-          user: this.config.smtp.user,
-          pass: this.config.smtp.pass,
+          user: cleanUser,
+          pass: cleanPass,
         },
         tls: {
           rejectUnauthorized: false, // Critical for Railway
@@ -170,12 +187,12 @@ export class EmailService {
     for (let configIndex = 0; configIndex < configs.length; configIndex++) {
       for (let i = 0; i < retries; i++) {
         try {
-          // Create transporter with current config
+          // Create transporter with current config and cleaned credentials
           const transporter = nodemailer.createTransport({
             ...configs[configIndex],
             auth: {
-              user: this.config.smtp.user,
-              pass: this.config.smtp.pass,
+              user: this.cleanEnvVar(this.config.smtp.user),
+              pass: this.cleanEnvVar(this.config.smtp.pass),
             },
             connectionTimeout: 15000,
             greetingTimeout: 15000,
