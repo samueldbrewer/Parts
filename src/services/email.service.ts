@@ -42,7 +42,6 @@ export class EmailService {
   private imap: Imap | null = null;
   private inbox: Email[] = [];
   private isInitialized = false;
-  private smtpVerified = false;
 
   constructor(private config: EmailConfig) {}
 
@@ -54,24 +53,18 @@ export class EmailService {
 
   async initialize(): Promise<void> {
     try {
-      logger.info('Initializing SMTP transporter...', {
-        host: this.config.smtp.host,
-        port: this.config.smtp.port,
-        user: this.config.smtp.user,
-      });
-
       // Clean environment variables for Railway (remove quotes)
       const cleanUser = this.cleanEnvVar(this.config.smtp.user);
       const cleanPass = this.cleanEnvVar(this.config.smtp.pass);
 
-      logger.info('Using cleaned credentials', {
-        originalUserLength: this.config.smtp.user?.length || 0,
+      logger.info('Initializing single reusable SMTP transporter with connection pooling', {
+        host: this.config.smtp.host,
+        port: this.config.smtp.port,
         cleanUserLength: cleanUser?.length || 0,
-        originalPassLength: this.config.smtp.pass?.length || 0,
         cleanPassLength: cleanPass?.length || 0,
       });
 
-      // Initialize SMTP transporter for sending emails - Railway-friendly config
+      // Create single reusable transporter with connection pooling
       this.transporter = nodemailer.createTransport({
         service: 'gmail',
         host: this.config.smtp.host,
@@ -86,9 +79,13 @@ export class EmailService {
           rejectUnauthorized: false, // Critical for Railway
         },
         // Railway-optimized timeouts
-        connectionTimeout: 15000,
-        greetingTimeout: 15000,
-        socketTimeout: 30000,
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 20000,
+        // Connection pooling for efficiency
+        pool: true,
+        maxConnections: 5,
+        maxMessages: 100,
       });
 
       logger.info('Initializing IMAP configuration...', {
@@ -111,7 +108,7 @@ export class EmailService {
 
       // Mark as ready immediately - no blocking verification
       this.isInitialized = true;
-      logger.info('Email service initialized - SMTP verification will happen on first send');
+      logger.info('Email service initialized with connection pooling - ready for sends');
     } catch (error) {
       logger.error('Failed to initialize email service', {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -130,119 +127,54 @@ export class EmailService {
       throw new Error('Email service not initialized');
     }
 
-    // Lazy SMTP verification on first send
-    if (!this.smtpVerified) {
+    const maxRetries = 2;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        await Promise.race([
-          this.transporter.verify(),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('SMTP verification timeout')), 10000),
-          ),
-        ]);
-        this.smtpVerified = true;
-        logger.info('✅ SMTP connection verified');
-      } catch (error) {
-        logger.warn('⚠️ SMTP verification failed, attempting send anyway:', {
-          error: error instanceof Error ? error.message : 'Unknown error',
+        // Direct send using the pooled connection - no verification
+        const info = await this.transporter.sendMail({
+          from: this.config.smtp.from,
+          to,
+          subject,
+          text,
+          html: html || text,
         });
-        // Don't throw - attempt to send anyway
-      }
-    }
 
-    // Send with retry logic
-    return await this.attemptSend(to, subject, text, html);
-  }
+        logger.info('Email sent successfully', {
+          to,
+          subject,
+          messageId: info.messageId,
+          attempt: attempt + 1,
+        });
 
-  private async attemptSend(
-    to: string,
-    subject: string,
-    text: string,
-    html?: string,
-    retries = 3,
-  ): Promise<SendEmailResult> {
-    // Multiple configuration fallbacks for Railway reliability
-    const configs = [
-      {
-        service: 'gmail',
-        port: 587,
-        secure: false,
-        requireTLS: true,
-        tls: { rejectUnauthorized: false },
-      },
-      {
-        service: 'gmail',
-        port: 465,
-        secure: true,
-        tls: { rejectUnauthorized: false },
-      },
-      {
-        host: 'smtp.gmail.com',
-        port: 587,
-        secure: false,
-        requireTLS: true,
-        tls: { rejectUnauthorized: false },
-      },
-    ];
+        return {
+          success: true,
+          messageId: info.messageId,
+          response: info.response,
+        };
+      } catch (error) {
+        logger.error(`Send attempt ${attempt + 1} failed:`, {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          to,
+          subject,
+        });
 
-    for (let configIndex = 0; configIndex < configs.length; configIndex++) {
-      for (let i = 0; i < retries; i++) {
-        try {
-          // Create transporter with current config and cleaned credentials
-          const transporter = nodemailer.createTransport({
-            ...configs[configIndex],
-            auth: {
-              user: this.cleanEnvVar(this.config.smtp.user),
-              pass: this.cleanEnvVar(this.config.smtp.pass),
-            },
-            connectionTimeout: 15000,
-            greetingTimeout: 15000,
-            socketTimeout: 30000,
-          });
-
-          const mailOptions = {
-            from: this.config.smtp.from,
-            to,
-            subject,
-            text,
-            html: html || text,
-          };
-
-          const info = await transporter.sendMail(mailOptions);
-
-          logger.info('Email sent successfully', {
-            to,
-            subject,
-            messageId: info.messageId,
-            configIndex: configIndex + 1,
-            attempt: i + 1,
-          });
-
+        if (attempt === maxRetries) {
           return {
-            success: true,
-            messageId: info.messageId,
-            response: info.response,
+            success: false,
+            error: `Failed to send email after ${maxRetries + 1} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`,
           };
-        } catch (error) {
-          logger.error(`Config ${configIndex + 1}, attempt ${i + 1} failed:`, {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            to,
-            subject,
-          });
-
-          if (i === retries - 1) {
-            logger.warn(`All retries failed for config ${configIndex + 1}, trying next config`);
-            break; // Move to next config
-          }
-
-          // Wait before retry with exponential backoff
-          await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
         }
+
+        // Simple 1 second wait between retries
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
 
+    // This should never be reached, but TypeScript requires it
     return {
       success: false,
-      error: 'Failed to send email with all configurations and retries',
+      error: 'Unexpected error in send retry logic',
     };
   }
 
