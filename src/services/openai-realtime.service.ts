@@ -146,6 +146,13 @@ When users ask for current information, use your function calling capabilities t
 
   private async handleFunctionCall(message: any): Promise<void> {
     try {
+      // Log the full message structure for debugging
+      logger.debug('Raw function call message', {
+        message,
+        messageKeys: Object.keys(message),
+        sessionId: this.session?.id,
+      });
+
       const callId = message.call_id;
       const functionName = message.name;
       const args = JSON.parse(message.arguments || '{}');
@@ -154,6 +161,7 @@ When users ask for current information, use your function calling capabilities t
         callId,
         functionName,
         args,
+        messageType: message.type,
         sessionId: this.session?.id,
       });
 
@@ -198,6 +206,12 @@ When users ask for current information, use your function calling capabilities t
   private handleMessage(data: WebSocket.Data): void {
     try {
       const message = JSON.parse(data.toString());
+
+      // Log all message types for debugging
+      logger.debug('Received message', {
+        type: message.type,
+        sessionId: this.session?.id,
+      });
 
       switch (message.type) {
         case 'session.created':
