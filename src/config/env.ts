@@ -52,6 +52,15 @@ const envSchema = Joi.object({
   OPENAI_VOICE: Joi.string()
     .valid('alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer')
     .default('alloy'),
+
+  // Email Configuration
+  EMAIL_USER: Joi.string().default('partnerplustestsdb@gmail.com'),
+  EMAIL_PASS: Joi.string().default('mfpnszmgrpblguxu'),
+  EMAIL_FROM: Joi.string().default('partnerplustestsdb@gmail.com'),
+  SMTP_HOST: Joi.string().default('smtp.gmail.com'),
+  SMTP_PORT: Joi.number().default(587),
+  IMAP_HOST: Joi.string().default('imap.gmail.com'),
+  IMAP_PORT: Joi.number().default(993),
 }).unknown(true);
 
 const { error, value: envVars } = envSchema.validate(process.env);
@@ -125,5 +134,19 @@ export const config = {
     apiKey: envVars.OPENAI_API_KEY,
     realtimeModel: envVars.OPENAI_REALTIME_MODEL,
     voice: envVars.OPENAI_VOICE,
+  },
+
+  email: {
+    user: envVars.EMAIL_USER,
+    pass: envVars.EMAIL_PASS,
+    from: envVars.EMAIL_FROM,
+    smtp: {
+      host: envVars.SMTP_HOST,
+      port: envVars.SMTP_PORT,
+    },
+    imap: {
+      host: envVars.IMAP_HOST,
+      port: envVars.IMAP_PORT,
+    },
   },
 };

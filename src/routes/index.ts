@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import voiceRoutes from './voice.routes';
 import adminRoutes from './admin.routes';
+import emailRoutes from './email.routes';
 
 const router = Router();
 
@@ -11,6 +12,9 @@ const router = Router();
 
 // Voice endpoints
 router.use('/voice', voiceRoutes);
+
+// Email endpoints
+router.use('/email', emailRoutes);
 
 // Admin endpoints
 router.use('/admin', adminRoutes);
@@ -29,6 +33,12 @@ router.get('/', (req, res) => {
         websocket: '/api/v1/voice/realtime',
         sessions: '/api/v1/voice/sessions',
         usage: '/api/v1/voice/usage',
+      },
+      email: {
+        health: '/api/v1/email/health',
+        send: '/api/v1/email/send',
+        inbox: '/api/v1/email/inbox',
+        refresh: '/api/v1/email/refresh',
       },
     },
   });
