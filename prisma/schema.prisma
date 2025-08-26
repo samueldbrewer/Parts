@@ -18,6 +18,40 @@ model Example {
   updatedAt DateTime @updatedAt
 }
 
+// Voice session tracking
+model VoiceSession {
+  id                String    @id @default(uuid())
+  userId            String
+  startTime         DateTime  @default(now())
+  endTime           DateTime?
+  status            String    @default("active") // active, completed, error
+  inputTokens       Int       @default(0)
+  outputTokens      Int       @default(0)
+  inputAudioTokens  Int       @default(0)
+  outputAudioTokens Int       @default(0)
+  metadata          Json?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([startTime])
+}
+
+// Conversation storage (optional, for transcript storage)
+model VoiceConversation {
+  id          String   @id @default(uuid())
+  sessionId   String
+  role        String   // user, assistant, system
+  contentType String   // text, audio
+  content     String   @db.Text
+  timestamp   DateTime @default(now())
+  metadata    Json?
+
+  @@index([sessionId])
+  @@index([timestamp])
+}
+
 // Add your models here
 // Example:
 // model User {

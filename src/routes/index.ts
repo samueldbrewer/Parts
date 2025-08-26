@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import voiceRoutes from './voice.routes';
 
 const router = Router();
 
@@ -6,6 +7,9 @@ const router = Router();
 // Example:
 // router.use('/users', userRoutes);
 // router.use('/products', productRoutes);
+
+// Voice endpoints
+router.use('/voice', voiceRoutes);
 
 // Welcome endpoint
 router.get('/', (req, res) => {
@@ -15,8 +19,14 @@ router.get('/', (req, res) => {
     endpoints: {
       health: '/health',
       metrics: '/metrics',
-      docs: '/api-docs'
-    }
+      docs: '/api-docs',
+      voice: {
+        token: '/api/v1/voice/token',
+        websocket: '/api/v1/voice/realtime',
+        sessions: '/api/v1/voice/sessions',
+        usage: '/api/v1/voice/usage',
+      },
+    },
   });
 });
 
