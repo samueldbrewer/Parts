@@ -4,10 +4,18 @@ import { emailController } from '../controllers/email.controller';
 
 const router = Router();
 
-// Mock middleware - replace with your actual middleware imports
+// Validation middleware using express-validator
+import { validationResult } from 'express-validator';
+
 const validateRequest = (req: any, res: any, next: any) => {
-  // Simple validation middleware mock
-  // Replace with your actual express-validator middleware
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      error: 'Validation failed',
+      details: errors.array(),
+    });
+  }
   next();
 };
 
