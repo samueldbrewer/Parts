@@ -678,8 +678,8 @@
             audioChunkBuffer.push(base64Audio);
             
             // If we have enough chunks buffered, start playing
-            const MIN_BUFFER_SIZE = 2; // Wait for at least 2 chunks
-            const MAX_BUFFER_TIME = 150; // Maximum wait time in ms
+            const MIN_BUFFER_SIZE = 4; // Wait for at least 4 chunks for smoother playback
+            const MAX_BUFFER_TIME = 200; // Maximum wait time in ms (increased for better buffering)
             
             // Clear existing timeout
             if (audioBufferTimeout) {
@@ -692,8 +692,9 @@
                 while (audioChunkBuffer.length > 0) {
                     audioQueue.push(audioChunkBuffer.shift());
                 }
+                // Pre-decode and play
                 playNextChunk();
-            } else {
+            } else if (!isPlaying && audioChunkBuffer.length > 0) {
                 // Otherwise wait a bit more to collect chunks
                 audioBufferTimeout = setTimeout(() => {
                     while (audioChunkBuffer.length > 0) {
@@ -754,6 +755,36 @@
             }, 200);
         }
 
+        // Pre-decode multiple chunks for smoother playback
+        async function preDecodeChunks(chunks) {
+            const decodedBuffers = [];
+            
+            for (const base64Audio of chunks) {
+                try {
+                    const binaryString = atob(base64Audio);
+                    const bytes = new Uint8Array(binaryString.length);
+                    
+                    for (let i = 0; i < binaryString.length; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                    }
+
+                    // Convert PCM16 to Float32
+                    const pcm16 = new Int16Array(bytes.buffer);
+                    const float32 = new Float32Array(pcm16.length);
+                    
+                    for (let i = 0; i < pcm16.length; i++) {
+                        float32[i] = pcm16[i] / 32768.0;
+                    }
+                    
+                    decodedBuffers.push(float32);
+                } catch (e) {
+                    console.error('Failed to decode chunk:', e);
+                }
+            }
+            
+            return decodedBuffers;
+        }
+
         async function playNextChunk() {
             if (audioQueue.length === 0 || isFadingOut) {
                 isPlaying = false;
@@ -793,21 +824,48 @@
                     gainNode.gain.value = 0.01; // Start at small value for fade in
                 }
 
-                const base64Audio = audioQueue.shift();
-                const binaryString = atob(base64Audio);
-                const bytes = new Uint8Array(binaryString.length);
-                
-                for (let i = 0; i < binaryString.length; i++) {
-                    bytes[i] = binaryString.charCodeAt(i);
+                // Pre-decode up to 3 chunks at once for smoother playback
+                const chunksToDecode = [];
+                const numChunksToDecode = Math.min(3, audioQueue.length);
+                for (let i = 0; i < numChunksToDecode; i++) {
+                    chunksToDecode.push(audioQueue.shift());
                 }
-
-                // Convert PCM16 to Float32
-                const pcm16 = new Int16Array(bytes.buffer);
-                const float32 = new Float32Array(pcm16.length);
                 
-                for (let i = 0; i < pcm16.length; i++) {
-                    float32[i] = pcm16[i] / 32768.0;
+                const decodedBuffers = await preDecodeChunks(chunksToDecode);
+                
+                // Combine the decoded buffers into one for smoother playback
+                let totalLength = 0;
+                decodedBuffers.forEach(buffer => totalLength += buffer.length);
+                
+                const combinedFloat32 = new Float32Array(totalLength);
+                let offset = 0;
+                
+                for (let i = 0; i < decodedBuffers.length; i++) {
+                    const buffer = decodedBuffers[i];
+                    combinedFloat32.set(buffer, offset);
+                    
+                    // Apply crossfade between chunks
+                    if (i > 0) {
+                        const crossfadeLength = Math.min(128, buffer.length / 10);
+                        const prevEnd = offset;
+                        const currStart = offset;
+                        
+                        // Crossfade region
+                        for (let j = 0; j < crossfadeLength; j++) {
+                            const factor = j / crossfadeLength;
+                            const prevIdx = prevEnd - crossfadeLength + j;
+                            const currIdx = currStart + j;
+                            if (prevIdx >= 0 && currIdx < combinedFloat32.length) {
+                                // Mix the overlapping parts
+                                combinedFloat32[prevIdx] = combinedFloat32[prevIdx] * (1 - factor) + combinedFloat32[currIdx] * factor;
+                            }
+                        }
+                    }
+                    
+                    offset += buffer.length;
                 }
+                
+                const float32 = combinedFloat32;
 
                 // Apply longer smoothing window to reduce clicks
                 const windowSize = 256; // Increased from 128
