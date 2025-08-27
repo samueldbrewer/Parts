@@ -65,8 +65,8 @@ export class EmailService {
         secure: false,
         requireTLS: true,
         auth: {
-          user: this.cleanEnvVar(this.config.smtp.user),
-          pass: this.cleanEnvVar(this.config.smtp.pass),
+          user: this.config.smtp.user, // Use direct config values
+          pass: this.config.smtp.pass,
         },
         tls: {
           rejectUnauthorized: false, // CRITICAL for Railway/cloud
@@ -81,16 +81,8 @@ export class EmailService {
         socketTimeout: 20000,
       });
 
-      // Try SMTP verification but don't fail if it times out
-      try {
-        await this.transporter.verify();
-        logger.info('✅ SMTP server ready');
-      } catch (error) {
-        logger.warn('⚠️ SMTP verification failed, will attempt sends anyway:', {
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-        // Don't throw - allow service to continue
-      }
+      // Skip SMTP verification entirely for Railway compatibility
+      logger.info('SMTP transporter created, skipping verification for Railway compatibility');
 
       // Initialize IMAP for inbox reading
       this.imap = new Imap({
