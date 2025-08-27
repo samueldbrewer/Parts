@@ -937,6 +937,8 @@
                             isProcessing = true;
                             orb.classList.remove('user-speaking');
                             status.classList.remove('user-speaking');
+                            orb.style.transform = 'scale(1)'; // Reset scale
+                            orb.style.boxShadow = ''; // Reset glow
                             orb.classList.add('processing');
                             status.classList.add('processing');
                             status.textContent = 'Processing your request...';
@@ -1030,6 +1032,8 @@
             // Reset UI
             orb.classList.remove('user-speaking', 'assistant-speaking', 'processing');
             status.classList.remove('user-speaking', 'assistant-speaking', 'processing');
+            orb.style.transform = 'scale(1)'; // Reset scale
+            orb.style.boxShadow = ''; // Reset glow
             orbSection.classList.remove('active');
             emailSection.classList.remove('hidden');
             endButton.classList.remove('visible');
@@ -1037,6 +1041,10 @@
             emailInput.value = '';
             userEmail = '';
             isProcessing = false;
+            if (animationFrame) {
+                cancelAnimationFrame(animationFrame);
+                animationFrame = null;
+            }
         }
 
         // Event listeners
