@@ -181,11 +181,18 @@
                 inset 0 0 30px rgba(255, 255, 255, 0.2);
         }
         
-        /* Processing - spinning gradient */
+        /* Processing - more obvious spinner */
         .orb.processing {
-            background: linear-gradient(135deg, #f0f0f0, #e0e0e0, #f0f0f0);
-            background-size: 200% 200%;
-            animation: processing-spin 2s linear infinite;
+            background: conic-gradient(
+                from 0deg,
+                #f0f0f0 0deg,
+                #c8102e 45deg,
+                #f0f0f0 90deg,
+                #f0f0f0 270deg,
+                #c8102e 315deg,
+                #f0f0f0 360deg
+            );
+            animation: processing-spin 1s linear infinite;
             border-color: #d0d0d0;
             position: relative;
             overflow: hidden;
@@ -194,28 +201,38 @@
         .orb.processing::before {
             content: '';
             position: absolute;
-            top: -2px;
-            left: -2px;
-            right: -2px;
-            bottom: -2px;
-            background: linear-gradient(90deg, transparent, rgba(200, 16, 46, 0.3), transparent);
-            animation: processing-rotate 1.5s linear infinite;
+            top: 10%;
+            left: 10%;
+            right: 10%;
+            bottom: 10%;
+            background: #ffffff;
             border-radius: 50%;
+            z-index: 1;
+        }
+        
+        .orb.processing::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent 30%, rgba(255, 255, 255, 0.5) 50%, transparent 70%);
+            animation: processing-sweep 1.5s linear infinite;
+            border-radius: 50%;
+            z-index: 2;
         }
         
         @keyframes processing-spin {
             0% {
-                transform: scale(1) rotate(0deg);
-            }
-            50% {
-                transform: scale(1.05) rotate(180deg);
+                transform: rotate(0deg);
             }
             100% {
-                transform: scale(1) rotate(360deg);
+                transform: rotate(360deg);
             }
         }
         
-        @keyframes processing-rotate {
+        @keyframes processing-sweep {
             0% {
                 transform: rotate(0deg);
             }
@@ -551,6 +568,12 @@
                     console.log('WebSocket connected');
                     sessionActive = true;
                     
+                    // Ensure orb starts in neutral state
+                    orb.classList.remove('assistant-speaking', 'user-speaking', 'processing');
+                    status.classList.remove('assistant-speaking', 'user-speaking', 'processing');
+                    orb.style.transform = 'scale(1)';
+                    orb.style.boxShadow = '';
+                    
                     // Start audio streaming immediately after connection
                     await startAudioStream();
                     
@@ -675,7 +698,11 @@
             // Stop after fade out
             setTimeout(() => {
                 if (currentPlaybackSource) {
-                    currentPlaybackSource.stop();
+                    try {
+                        currentPlaybackSource.stop();
+                    } catch (e) {
+                        // Already stopped
+                    }
                     currentPlaybackSource = null;
                 }
                 
@@ -685,10 +712,22 @@
                 isPlaying = false;
                 isFadingOut = false;
                 
+                // Cancel any animation frames
+                if (animationFrame) {
+                    cancelAnimationFrame(animationFrame);
+                    animationFrame = null;
+                }
+                
                 // Reset gain for next playback
                 if (gainNode) {
                     gainNode.gain.value = 0;
                 }
+                
+                // Remove assistant visuals
+                orb.classList.remove('assistant-speaking');
+                status.classList.remove('assistant-speaking');
+                orb.style.transform = 'scale(1)';
+                orb.style.boxShadow = '';
             }, 200);
         }
 
@@ -809,15 +848,24 @@
                         // If user just started speaking while assistant is playing, interrupt
                         if (!wasUserSpeaking && isUserSpeaking && isPlaying) {
                             console.log('User interrupting assistant');
-                            stopAudioPlayback();
                             
-                            // Update visual immediately when interrupting
+                            // Stop playback FIRST
+                            stopAudioPlayback();
+                            isPlaying = false; // Ensure flag is set
+                            
+                            // Then update visual
                             isProcessing = false;
-                            orb.classList.remove('assistant-speaking', 'processing');
-                            status.classList.remove('assistant-speaking', 'processing');
-                            orb.classList.add('user-speaking');
-                            status.classList.add('user-speaking');
-                            status.textContent = 'Listening to you...';
+                            // Force remove all classes first
+                            orb.className = 'orb';
+                            status.className = 'status';
+                            
+                            // Then add user speaking classes
+                            setTimeout(() => {
+                                orb.classList.add('user-speaking');
+                                status.classList.add('user-speaking');
+                                status.textContent = 'Listening to you...';
+                                updateOrbScale('user', currentUserAudioLevel);
+                            }, 10);
                             
                             // Send interruption signal to server
                             ws.send(JSON.stringify({ type: 'response.cancel' }));
