@@ -748,6 +748,8 @@
                 }
                 
                 // Remove assistant visuals
+                assistantSpeakingStartTime = null; // Reset echo timer
+                currentAssistantAudioLevel = 0; // Reset level
                 orb.classList.remove('assistant-speaking');
                 status.classList.remove('assistant-speaking');
                 orb.style.transform = 'scale(1)';
@@ -792,6 +794,8 @@
                 // No more audio to play, remove assistant speaking animation
                 setTimeout(() => {
                     if (!isPlaying && !isUserSpeaking && !isProcessing) {
+                        assistantSpeakingStartTime = null; // Reset echo suppression timer
+                        currentAssistantAudioLevel = 0; // Clear audio level
                         orb.classList.remove('assistant-speaking', 'processing');
                         status.classList.remove('assistant-speaking', 'processing');
                         status.classList.add('listening');
