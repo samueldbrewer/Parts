@@ -672,38 +672,25 @@
             }
         }
 
-        // Play audio chunk with improved buffering
+        // Play audio chunk with buffering
         async function playAudioChunk(base64Audio) {
             // Add to buffer for smoother playback
             audioChunkBuffer.push(base64Audio);
-            
-            // If we have enough chunks buffered, start playing
-            const MIN_BUFFER_SIZE = 2; // Wait for at least 2 chunks
-            const MAX_BUFFER_TIME = 150; // Maximum wait time in ms
             
             // Clear existing timeout
             if (audioBufferTimeout) {
                 clearTimeout(audioBufferTimeout);
             }
             
-            // Start playback if we have enough chunks or after max wait time
-            if (audioChunkBuffer.length >= MIN_BUFFER_SIZE && !isPlaying && !isFadingOut) {
-                // Move buffered chunks to queue immediately
+            // Wait a bit to collect more chunks for smoother playback
+            audioBufferTimeout = setTimeout(() => {
                 while (audioChunkBuffer.length > 0) {
                     audioQueue.push(audioChunkBuffer.shift());
                 }
-                playNextChunk();
-            } else {
-                // Otherwise wait a bit more to collect chunks
-                audioBufferTimeout = setTimeout(() => {
-                    while (audioChunkBuffer.length > 0) {
-                        audioQueue.push(audioChunkBuffer.shift());
-                    }
-                    if (!isPlaying && !isFadingOut) {
-                        playNextChunk();
-                    }
-                }, MAX_BUFFER_TIME);
-            }
+                if (!isPlaying && !isFadingOut) {
+                    playNextChunk();
+                }
+            }, 50); // 50ms buffer
         }
         
         // Stop audio playback with fade out
@@ -774,23 +761,10 @@
 
             try {
                 if (!playbackContext) {
-                    playbackContext = new (window.AudioContext || window.webkitAudioContext)({ 
-                        sampleRate: 24000,
-                        latencyHint: 'playback' // Optimize for smooth playback over low latency
-                    });
+                    playbackContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
                     gainNode = playbackContext.createGain();
-                    
-                    // Add a compressor for more consistent volume
-                    const compressor = playbackContext.createDynamicsCompressor();
-                    compressor.threshold.value = -24;
-                    compressor.knee.value = 30;
-                    compressor.ratio.value = 12;
-                    compressor.attack.value = 0.003;
-                    compressor.release.value = 0.25;
-                    
-                    gainNode.connect(compressor);
-                    compressor.connect(playbackContext.destination);
-                    gainNode.gain.value = 0.01; // Start at small value for fade in
+                    gainNode.connect(playbackContext.destination);
+                    gainNode.gain.value = 0; // Start at 0 for fade in
                 }
 
                 const base64Audio = audioQueue.shift();
@@ -809,28 +783,13 @@
                     float32[i] = pcm16[i] / 32768.0;
                 }
 
-                // Apply longer smoothing window to reduce clicks
-                const windowSize = 256; // Increased from 128
-                // Fade in at start
+                // Apply smoothing window to reduce clicks
+                const windowSize = 128;
                 for (let i = 0; i < windowSize && i < float32.length; i++) {
-                    const fadeIn = Math.sin((i / windowSize) * Math.PI / 2); // Sine curve for smoother fade
-                    float32[i] *= fadeIn;
+                    float32[i] *= i / windowSize; // Fade in
                 }
-                // Fade out at end
                 for (let i = float32.length - windowSize; i < float32.length && i >= 0; i++) {
-                    const fadeOut = Math.sin(((float32.length - i) / windowSize) * Math.PI / 2);
-                    float32[i] *= fadeOut;
-                }
-                
-                // Optional: Apply slight overlap-add for consecutive chunks
-                // This helps blend chunks together
-                if (audioQueue.length > 0) {
-                    // Prepare for overlap with next chunk
-                    const overlapSize = Math.min(128, float32.length / 10);
-                    for (let i = float32.length - overlapSize; i < float32.length; i++) {
-                        const factor = (float32.length - i) / overlapSize;
-                        float32[i] *= factor;
-                    }
+                    float32[i] *= (float32.length - i) / windowSize; // Fade out
                 }
 
                 // Create and play buffer
@@ -843,32 +802,18 @@
                 
                 currentPlaybackSource = source;
                 
-                // Smoother fade in with exponential ramp
+                // Smooth fade in
                 const currentTime = playbackContext.currentTime;
                 if (!isFadingOut) {
                     gainNode.gain.cancelScheduledValues(currentTime);
-                    // Start from current value or small value to avoid click
-                    const startValue = gainNode.gain.value || 0.01;
-                    gainNode.gain.setValueAtTime(startValue, currentTime);
-                    // Use exponential ramp for smoother transition
-                    gainNode.gain.exponentialRampToValueAtTime(1.0, currentTime + 0.08); // 80ms fade in
+                    gainNode.gain.setValueAtTime(gainNode.gain.value, currentTime);
+                    gainNode.gain.linearRampToValueAtTime(1.0, currentTime + 0.05); // 50ms fade in
                 }
                 
                 source.onended = () => {
                     currentPlaybackSource = null;
-                    // Small delay between chunks to prevent overlap issues
                     if (!isFadingOut) {
-                        if (audioQueue.length > 0) {
-                            // Play next immediately if queue has items
-                            playNextChunk();
-                        } else {
-                            // Otherwise wait a tiny bit for potential incoming chunks
-                            setTimeout(() => {
-                                if (audioQueue.length > 0 && !isFadingOut) {
-                                    playNextChunk();
-                                }
-                            }, 10);
-                        }
+                        playNextChunk();
                     }
                 };
                 
