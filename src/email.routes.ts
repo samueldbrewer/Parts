@@ -9,24 +9,23 @@ const router = Router();
 // Apply rate limiting to all email routes
 router.use(apiLimiter);
 
-// Health and debug routes (no validation needed)
+// Email health check
 router.get('/health', emailController.getHealth);
-router.get('/debug/status', emailController.getDebugStatus);
-router.post('/retry-init', emailController.retryInitialization);
 
-// Send email with comprehensive validation
+// Test route without middleware
+router.post('/test', emailController.sendEmail);
+
+// Send email
 router.post(
   '/send',
   [
     body('to').isEmail().normalizeEmail().withMessage('Valid email address is required'),
     body('subject')
       .isString()
-      .trim()
       .isLength({ min: 1, max: 200 })
       .withMessage('Subject must be between 1 and 200 characters'),
     body('text')
       .isString()
-      .trim()
       .isLength({ min: 1, max: 10000 })
       .withMessage('Text content must be between 1 and 10000 characters'),
     body('html')
@@ -39,8 +38,10 @@ router.post(
   emailController.sendEmail,
 );
 
-// Inbox routes
+// Get inbox (cached)
 router.get('/inbox', emailController.getInbox);
+
+// Refresh inbox (force fetch)
 router.post('/refresh', emailController.refreshInbox);
 
 export default router;

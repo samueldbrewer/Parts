@@ -36,16 +36,13 @@ export interface SendEmailResult {
   messageId?: string;
   response?: string;
   error?: string;
-  processingTime?: number;
 }
 
 export class EmailService {
   private transporter!: nodemailer.Transporter;
   private imap!: Imap;
   private isInitialized = false;
-  private transporterReady = false;
   private inbox: Email[] = [];
-  private initStartTime = Date.now();
 
   constructor(private config: EmailConfig) {}
 
@@ -58,35 +55,31 @@ export class EmailService {
   // CRITICAL: Non-blocking initialization for cloud deployment
   async initialize(): Promise<void> {
     try {
-      logger.info('🚀 Initializing email service v2 with Railway-optimized configuration');
+      logger.info('Initializing email service with proven configuration');
 
-      // Create SMTP transporter with Railway-optimized settings
+      // Create SMTP transporter with connection pooling
       this.transporter = nodemailer.createTransport({
         service: 'gmail',
-        host: this.config.smtp.host,
-        port: this.config.smtp.port,
-        secure: false,
-        requireTLS: true, // CRITICAL for Gmail
         auth: {
-          user: this.cleanEnvVar(this.config.smtp.user),
-          pass: this.cleanEnvVar(this.config.smtp.pass),
+          user: 'partnerplustestsdb@gmail.com', // Test with exact working credentials
+          pass: 'mfpnszmgrpblguxu',
         },
         tls: {
-          rejectUnauthorized: false, // CRITICAL for Railway
+          rejectUnauthorized: false,
         },
-        // Connection pooling for efficiency
         pool: true,
         maxConnections: 5,
         maxMessages: 100,
-        // Railway-optimized timeouts
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 20000,
       });
 
-      // Skip SMTP verification during initialization - Railway-friendly
-      logger.info('✅ SMTP transporter created with connection pooling');
-      this.transporterReady = true;
+      // Skip SMTP verification entirely for Railway compatibility
+      logger.info('SMTP transporter created with credentials:', {
+        user: this.config.smtp.user,
+        userLength: this.config.smtp.user?.length,
+        passLength: this.config.smtp.pass?.length,
+        host: this.config.smtp.host,
+        port: this.config.smtp.port,
+      });
 
       // Initialize IMAP for inbox reading
       this.imap = new Imap({
@@ -96,52 +89,33 @@ export class EmailService {
         port: this.config.imap.port,
         tls: this.config.imap.tls,
         tlsOptions: { rejectUnauthorized: false },
-        connTimeout: 20000,
-        authTimeout: 10000,
       });
 
       this.isInitialized = true;
-      const initTime = Date.now() - this.initStartTime;
-      logger.info(`🎉 Email service v2 initialized successfully in ${initTime}ms`);
+      logger.info('Email service initialized successfully');
     } catch (error) {
-      logger.error('❌ Email service v2 initialization failed:', {
+      logger.error('Email service initialization failed:', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
       });
       // Don't throw - allow degraded functionality
-      this.isInitialized = true; // Mark as initialized even if IMAP failed
-      this.transporterReady = !!this.transporter; // SMTP might still work
     }
   }
 
-  // Enhanced send method with timing and better error handling
+  // Simple, reliable send method
   async sendEmail(
     to: string,
     subject: string,
     text: string,
     html?: string,
   ): Promise<SendEmailResult> {
-    const startTime = Date.now();
-
     if (!this.isInitialized) {
       return {
         success: false,
         error: 'Email service not initialized',
-        processingTime: Date.now() - startTime,
-      };
-    }
-
-    if (!this.transporterReady || !this.transporter) {
-      return {
-        success: false,
-        error: 'SMTP transporter not ready',
-        processingTime: Date.now() - startTime,
       };
     }
 
     try {
-      logger.info(`📧 Sending email to ${to} with subject: "${subject}"`);
-
       const info = await this.transporter.sendMail({
         from: this.config.smtp.from,
         to,
@@ -150,52 +124,41 @@ export class EmailService {
         html: html || text,
       });
 
-      const processingTime = Date.now() - startTime;
-
-      logger.info(`✅ Email sent successfully in ${processingTime}ms`, {
+      logger.info('Email sent successfully', {
         to,
         subject,
         messageId: info.messageId,
-        response: info.response,
       });
 
       return {
         success: true,
         messageId: info.messageId,
         response: info.response,
-        processingTime,
       };
     } catch (error) {
-      const processingTime = Date.now() - startTime;
-
-      logger.error(`❌ Email send failed after ${processingTime}ms:`, {
+      logger.error('Email send failed:', {
         error: error instanceof Error ? error.message : 'Unknown error',
         to,
         subject,
-        stack: error instanceof Error ? error.stack : undefined,
       });
-
       return {
         success: false,
         error: `Failed to send email: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        processingTime,
       };
     }
   }
 
-  // Enhanced inbox methods with better error handling
+  // Inbox reading implementation
   async getInbox(limit = 10): Promise<Email[]> {
     try {
       if (this.inbox.length > 0) {
-        logger.info(`📬 Returning ${Math.min(limit, this.inbox.length)} cached emails`);
         return this.inbox.slice(0, limit);
       }
 
-      logger.info('📬 Fetching emails from server...');
       const emails = await this.fetchEmails();
       return emails.slice(0, limit);
     } catch (error) {
-      logger.error('❌ Get inbox error:', {
+      logger.error('Get inbox error:', {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       return [];
@@ -204,12 +167,10 @@ export class EmailService {
 
   async refreshInbox(): Promise<Email[]> {
     try {
-      logger.info('🔄 Refreshing inbox from server...');
       const emails = await this.fetchEmails();
-      logger.info(`✅ Refreshed inbox: ${emails.length} emails`);
       return emails;
     } catch (error) {
-      logger.error('❌ Refresh inbox error:', {
+      logger.error('Refresh inbox error:', {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       return this.inbox;
@@ -225,13 +186,11 @@ export class EmailService {
       this.imap.once('ready', () => {
         this.imap.openBox('INBOX', false, (err: any, box: any) => {
           if (err) {
-            logger.error('❌ Failed to open INBOX:', err.message);
             reject(err);
             return;
           }
 
           expectedCount = box.messages.total;
-          logger.info(`📬 Fetching ${expectedCount} emails from INBOX`);
 
           if (expectedCount === 0) {
             this.imap.end();
@@ -248,7 +207,6 @@ export class EmailService {
             msg.on('body', (stream: any) => {
               simpleParser(stream, (err: any, parsed: any) => {
                 if (err) {
-                  logger.warn(`⚠️ Failed to parse email ${seqno}:`, err.message);
                   processedCount++;
                   return;
                 }
@@ -274,74 +232,33 @@ export class EmailService {
                     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
                   );
                   this.inbox = emailArray;
-                  logger.info(`✅ Successfully fetched and cached ${emailArray.length} emails`);
                   resolve(emailArray);
                 }
               });
             });
           });
 
-          f.once('error', (err) => {
-            logger.error('❌ IMAP fetch error:', err.message);
-            reject(err);
-          });
+          f.once('error', reject);
 
-          // Timeout fallback with better logging
+          // Timeout fallback
           setTimeout(() => {
             if (emails.size > 0) {
               this.imap.end();
               const emailArray = Array.from(emails.values());
               emailArray.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
               this.inbox = emailArray;
-              logger.warn(`⏱️ IMAP fetch timeout, returning ${emailArray.length} partial emails`);
               resolve(emailArray);
-            } else {
-              logger.error('❌ IMAP fetch timeout with no emails received');
-              reject(new Error('IMAP fetch timeout: No emails received'));
             }
-          }, 10000); // Increased timeout for Railway
+          }, 5000);
         });
       });
 
-      this.imap.once('error', (err: any) => {
-        logger.error('❌ IMAP connection error:', err.message);
-        reject(err);
-      });
-
+      this.imap.once('error', reject);
       this.imap.connect();
     });
   }
 
-  // Enhanced service status with detailed information
   isServiceReady(): boolean {
     return this.isInitialized;
-  }
-
-  getServiceStatus() {
-    return {
-      initialized: this.isInitialized,
-      transporterReady: this.transporterReady,
-      imapReady: !!this.imap,
-      cachedEmailCount: this.inbox.length,
-      initializationTime: this.isInitialized ? Date.now() - this.initStartTime : null,
-    };
-  }
-
-  // Manual retry for debugging
-  async retryInitialization(): Promise<boolean> {
-    try {
-      logger.info('🔄 Manually retrying email service initialization...');
-      this.isInitialized = false;
-      this.transporterReady = false;
-      this.initStartTime = Date.now();
-
-      await this.initialize();
-      return this.isInitialized;
-    } catch (error) {
-      logger.error('❌ Manual retry failed:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-      return false;
-    }
   }
 }
