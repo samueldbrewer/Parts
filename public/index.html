@@ -13,8 +13,8 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
-            color: #ffffff;
+            background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
+            color: #2d2926;
             height: 100vh;
             display: flex;
             align-items: center;
@@ -47,17 +47,17 @@
         }
 
         .title {
-            font-size: 24px;
-            font-weight: 300;
-            letter-spacing: 0.5px;
+            font-size: 28px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
             text-align: center;
             margin-bottom: 8px;
-            color: rgba(255, 255, 255, 0.9);
+            color: #2d2926;
         }
 
         .subtitle {
-            font-size: 14px;
-            color: rgba(255, 255, 255, 0.5);
+            font-size: 15px;
+            color: #979797;
             text-align: center;
             margin-bottom: 40px;
             line-height: 1.5;
@@ -72,23 +72,22 @@
             width: 100%;
             padding: 16px 20px;
             font-size: 16px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            color: #ffffff;
+            background: #ffffff;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            color: #2d2926;
             outline: none;
             transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
 
         .email-input::placeholder {
-            color: rgba(255, 255, 255, 0.3);
+            color: #979797;
         }
 
         .email-input:focus {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(255, 255, 255, 0.2);
-            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.05);
+            border-color: #c8102e;
+            box-shadow: 0 0 0 3px rgba(200, 16, 46, 0.1);
         }
 
         .enter-button {
@@ -96,23 +95,24 @@
             width: 100%;
             padding: 16px;
             font-size: 16px;
-            font-weight: 500;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 12px;
-            color: rgba(255, 255, 255, 0.9);
+            font-weight: 600;
+            background: #c8102e;
+            border: none;
+            border-radius: 8px;
+            color: #ffffff;
             cursor: pointer;
             transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 12px rgba(200, 16, 46, 0.2);
         }
 
         .enter-button:hover {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: rgba(255, 255, 255, 0.25);
+            background: #aa182c;
+            box-shadow: 0 6px 16px rgba(200, 16, 46, 0.3);
+            transform: translateY(-2px);
         }
 
         .enter-button:active {
-            transform: scale(0.98);
+            transform: translateY(0);
         }
 
         /* Orb Section */
@@ -143,15 +143,62 @@
             width: 120px;
             height: 120px;
             background: radial-gradient(circle at 30% 30%, 
-                rgba(255, 255, 255, 0.2),
-                rgba(255, 255, 255, 0.05)
+                #ffffff,
+                #f0f0f0
             );
             border-radius: 50%;
             position: relative;
             box-shadow: 
-                0 0 60px rgba(255, 255, 255, 0.1),
-                inset 0 0 40px rgba(255, 255, 255, 0.05);
+                0 10px 40px rgba(0, 0, 0, 0.1),
+                inset 0 -10px 30px rgba(0, 0, 0, 0.05);
             transition: all 0.3s ease;
+            border: 2px solid #e0e0e0;
+        }
+        
+        /* User speaking - blue pulse */
+        .orb.user-speaking {
+            background: radial-gradient(circle at 30% 30%, 
+                #4a90e2,
+                #357abd
+            );
+            border-color: #4a90e2;
+            animation: user-pulse 1s ease-in-out infinite;
+            box-shadow: 
+                0 0 60px rgba(74, 144, 226, 0.4),
+                inset 0 0 30px rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Assistant speaking - red pulse */
+        .orb.assistant-speaking {
+            background: radial-gradient(circle at 30% 30%, 
+                #c8102e,
+                #aa182c
+            );
+            border-color: #c8102e;
+            animation: assistant-pulse 0.8s ease-in-out infinite;
+            box-shadow: 
+                0 0 60px rgba(200, 16, 46, 0.4),
+                inset 0 0 30px rgba(255, 255, 255, 0.2);
+        }
+        
+        @keyframes user-pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+        }
+        
+        @keyframes assistant-pulse {
+            0%, 100% {
+                transform: scale(1);
+                filter: brightness(1);
+            }
+            50% {
+                transform: scale(1.15);
+                filter: brightness(1.2);
+            }
         }
 
         .orb::before {
@@ -162,16 +209,27 @@
             right: -40%;
             bottom: -40%;
             border-radius: 50%;
-            background: radial-gradient(circle at center, 
-                transparent 40%,
-                rgba(255, 255, 255, 0.03) 60%,
-                transparent 70%
-            );
-            animation: pulse-ring 2s infinite ease-out;
             opacity: 0;
+            transition: opacity 0.3s ease;
         }
 
-        .orb.speaking::before {
+        .orb.user-speaking::before {
+            background: radial-gradient(circle at center, 
+                transparent 40%,
+                rgba(74, 144, 226, 0.2) 60%,
+                transparent 70%
+            );
+            animation: pulse-ring 1.5s infinite ease-out;
+            opacity: 1;
+        }
+        
+        .orb.assistant-speaking::before {
+            background: radial-gradient(circle at center, 
+                transparent 40%,
+                rgba(200, 16, 46, 0.2) 60%,
+                transparent 70%
+            );
+            animation: pulse-ring 1.2s infinite ease-out;
             opacity: 1;
         }
 
@@ -183,16 +241,27 @@
             right: -20%;
             bottom: -20%;
             border-radius: 50%;
-            background: radial-gradient(circle at center, 
-                transparent 50%,
-                rgba(255, 255, 255, 0.05) 70%,
-                transparent 80%
-            );
-            animation: pulse-ring-2 1.5s infinite ease-out;
             opacity: 0;
+            transition: opacity 0.3s ease;
         }
 
-        .orb.speaking::after {
+        .orb.user-speaking::after {
+            background: radial-gradient(circle at center, 
+                transparent 50%,
+                rgba(74, 144, 226, 0.15) 70%,
+                transparent 80%
+            );
+            animation: pulse-ring-2 1.8s infinite ease-out 0.3s;
+            opacity: 1;
+        }
+        
+        .orb.assistant-speaking::after {
+            background: radial-gradient(circle at center, 
+                transparent 50%,
+                rgba(200, 16, 46, 0.15) 70%,
+                transparent 80%
+            );
+            animation: pulse-ring-2 1.5s infinite ease-out 0.2s;
             opacity: 1;
         }
 
@@ -218,42 +287,36 @@
             }
         }
 
-        .orb.speaking {
-            animation: orb-glow 0.5s ease-in-out infinite alternate;
-            transform: scale(1.1);
-            box-shadow: 
-                0 0 80px rgba(255, 255, 255, 0.2),
-                inset 0 0 50px rgba(255, 255, 255, 0.1);
-        }
-
-        @keyframes orb-glow {
-            0% {
-                filter: brightness(1);
-            }
-            100% {
-                filter: brightness(1.2);
-            }
-        }
 
         /* Status Text */
         .status {
             margin-top: 30px;
             font-size: 14px;
-            color: rgba(255, 255, 255, 0.4);
+            color: #979797;
             text-align: center;
             min-height: 20px;
+            font-weight: 500;
         }
 
         .status.listening {
-            color: rgba(255, 255, 255, 0.6);
+            color: #2d2926;
+        }
+        
+        .status.user-speaking {
+            color: #4a90e2;
+        }
+        
+        .status.assistant-speaking {
+            color: #c8102e;
         }
 
         /* Error Message */
         .error {
-            color: #ff6b6b;
-            font-size: 12px;
+            color: #c8102e;
+            font-size: 13px;
             margin-top: 8px;
             text-align: center;
+            font-weight: 500;
         }
 
         /* Loading spinner */
@@ -277,16 +340,18 @@
             bottom: 40px;
             left: 50%;
             transform: translateX(-50%);
-            padding: 12px 24px;
+            padding: 12px 32px;
             font-size: 14px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-weight: 500;
+            background: #ffffff;
+            border: 2px solid #e0e0e0;
             border-radius: 8px;
-            color: rgba(255, 255, 255, 0.5);
+            color: #979797;
             cursor: pointer;
             transition: all 0.3s ease;
             opacity: 0;
             pointer-events: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
 
         .end-button.visible {
@@ -295,8 +360,9 @@
         }
 
         .end-button:hover {
-            background: rgba(255, 255, 255, 0.08);
-            color: rgba(255, 255, 255, 0.7);
+            border-color: #c8102e;
+            color: #c8102e;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
     </style>
 </head>
@@ -304,8 +370,8 @@
     <div class="container">
         <!-- Email Input Section -->
         <div class="email-section" id="emailSection">
-            <h1 class="title">Technical Manual Assistant</h1>
-            <p class="subtitle">Enter your email to receive equipment manuals</p>
+            <h1 class="title">Parts Manual Finder</h1>
+            <p class="subtitle">Enter your email to receive equipment manuals directly</p>
             <div class="email-input-wrapper">
                 <input 
                     type="email" 
@@ -358,6 +424,9 @@
         let isStreaming = false;
         let isPlaying = false;
         let audioQueue = [];
+        let isUserSpeaking = false;
+        let userSpeakingTimeout = null;
+        let silenceThreshold = 0.01;
 
         // Email validation
         function validateEmail(email) {
@@ -432,7 +501,7 @@
                     
                     // Show end button
                     endButton.classList.add('visible');
-                    status.textContent = 'Ready to help find manuals';
+                    status.textContent = 'Ready to help you find manuals';
                     status.classList.add('listening');
                 };
                 
@@ -487,9 +556,14 @@
                     const audio = message.delta || message.data?.delta || message.audio;
                     if (audio) {
                         playAudioChunk(audio);
-                        if (!orb.classList.contains('speaking')) {
-                            orb.classList.add('speaking');
-                            status.textContent = 'Assistant is speaking...';
+                        if (!orb.classList.contains('assistant-speaking')) {
+                            // Remove user speaking classes
+                            orb.classList.remove('user-speaking');
+                            status.classList.remove('user-speaking');
+                            // Add assistant speaking classes
+                            orb.classList.add('assistant-speaking');
+                            status.classList.add('assistant-speaking');
+                            status.textContent = 'Assistant is responding...';
                         }
                     }
                     break;
@@ -498,8 +572,10 @@
                 case 'response.done':
                     // Audio response complete
                     setTimeout(() => {
-                        orb.classList.remove('speaking');
-                        status.textContent = 'Listening...';
+                        orb.classList.remove('assistant-speaking');
+                        status.classList.remove('assistant-speaking');
+                        status.classList.add('listening');
+                        status.textContent = 'Listening for your question...';
                     }, 500);
                     break;
                     
@@ -597,6 +673,10 @@
                     if (isStreaming && ws && ws.readyState === WebSocket.OPEN) {
                         const inputData = e.inputBuffer.getChannelData(0);
                         
+                        // Detect if user is speaking
+                        const hasSound = detectUserSpeaking(inputData);
+                        updateUserSpeakingState(hasSound);
+                        
                         // Convert and send audio
                         const pcm16 = convertFloat32ToPCM16(inputData);
                         const base64 = btoa(String.fromCharCode(...new Uint8Array(pcm16.buffer)));
@@ -625,6 +705,53 @@
                 pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
             }
             return pcm16;
+        }
+        
+        // Detect if user is speaking
+        function detectUserSpeaking(audioData) {
+            let sum = 0;
+            for (let i = 0; i < audioData.length; i++) {
+                sum += audioData[i] * audioData[i];
+            }
+            const rms = Math.sqrt(sum / audioData.length);
+            return rms > silenceThreshold;
+        }
+        
+        // Update user speaking state
+        function updateUserSpeakingState(hasSound) {
+            if (hasSound && !isPlaying) {
+                // Clear any existing timeout
+                if (userSpeakingTimeout) {
+                    clearTimeout(userSpeakingTimeout);
+                    userSpeakingTimeout = null;
+                }
+                
+                // User is speaking
+                if (!isUserSpeaking) {
+                    isUserSpeaking = true;
+                    // Remove assistant speaking classes
+                    orb.classList.remove('assistant-speaking');
+                    status.classList.remove('assistant-speaking');
+                    // Add user speaking classes
+                    orb.classList.add('user-speaking');
+                    status.classList.add('user-speaking');
+                    status.textContent = 'Listening to you...';
+                }
+            } else if (isUserSpeaking && !hasSound) {
+                // User stopped speaking - add delay before removing visual
+                if (!userSpeakingTimeout) {
+                    userSpeakingTimeout = setTimeout(() => {
+                        isUserSpeaking = false;
+                        orb.classList.remove('user-speaking');
+                        status.classList.remove('user-speaking');
+                        if (!isPlaying) {
+                            status.classList.add('listening');
+                            status.textContent = 'Processing...';
+                        }
+                        userSpeakingTimeout = null;
+                    }, 500);
+                }
+            }
         }
 
         // Send text message
