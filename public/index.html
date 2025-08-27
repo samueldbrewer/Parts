@@ -348,13 +348,16 @@
 
         // State
         let ws = null;
-        let mediaStream = null;
-        let mediaRecorder = null;
+        let audioStream = null;
         let audioContext = null;
-        let audioWorklet = null;
+        let source = null;
+        let processor = null;
+        let playbackContext = null;
         let userEmail = '';
         let sessionActive = false;
-        let isAISpeaking = false;
+        let isStreaming = false;
+        let isPlaying = false;
+        let audioQueue = [];
 
         // Email validation
         function validateEmail(email) {
@@ -416,24 +419,46 @@
 
                 console.log('Connecting WebSocket with token:', token.substring(0, 20) + '...');
 
-                // Initialize WebSocket connection
-                await connectWebSocket(token, sessionId);
+                // Connect WebSocket with token
+                const wsUrl = response.data.url.replace('http://', 'ws://').replace('https://', 'wss://');
+                ws = new WebSocket(`${wsUrl}?token=${token}`);
+                
+                ws.onopen = async () => {
+                    console.log('WebSocket connected');
+                    sessionActive = true;
+                    
+                    // Start audio streaming immediately after connection
+                    await startAudioStream();
+                    
+                    // Show end button
+                    endButton.classList.add('visible');
+                    status.textContent = 'Ready to help find manuals';
+                    status.classList.add('listening');
+                };
+                
+                ws.onmessage = (event) => {
+                    const message = JSON.parse(event.data);
+                    handleMessage(message);
+                };
+                
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    showError('Connection error occurred');
+                };
+                
+                ws.onclose = () => {
+                    console.log('WebSocket closed');
+                    if (sessionActive) {
+                        endSession();
+                    }
+                };
 
-                // Start audio capture
-                await startAudioCapture();
-
-                // Show end button
-                endButton.classList.add('visible');
-                sessionActive = true;
-                status.textContent = 'Ready to help find manuals';
-                status.classList.add('listening');
-
-                // Send initial message with user's email
+                // Send initial message with user's email after connection is ready
                 setTimeout(() => {
                     if (ws && ws.readyState === WebSocket.OPEN) {
                         sendTextMessage(`My email is ${userEmail}. I'm looking for equipment manuals.`);
                     }
-                }, 1000);
+                }, 2000);
 
             } catch (error) {
                 console.error('Failed to start session:', error);
@@ -444,137 +469,151 @@
             }
         }
 
-        // Connect to WebSocket
-        function connectWebSocket(token, sessionId) {
-            return new Promise((resolve, reject) => {
-                const wsUrl = `${WS_URL}?token=${token}&sessionId=${sessionId}`;
-                console.log('Connecting to WebSocket:', wsUrl);
-                
-                ws = new WebSocket(wsUrl);
-                
-                ws.binaryType = 'arraybuffer';
-
-                ws.onopen = () => {
-                    console.log('WebSocket connected successfully');
-                    resolve();
-                };
-
-                ws.onmessage = async (event) => {
-                    if (event.data instanceof ArrayBuffer) {
-                        // Handle audio data from AI
-                        console.log('Received audio data:', event.data.byteLength, 'bytes');
-                        handleAudioData(event.data);
-                    } else {
-                        // Handle text messages
-                        try {
-                            const message = JSON.parse(event.data);
-                            console.log('Received message:', message.type);
-                            handleMessage(message);
-                        } catch (e) {
-                            console.error('Failed to parse message:', e);
-                        }
-                    }
-                };
-
-                ws.onerror = (error) => {
-                    console.error('WebSocket error:', error);
-                    reject(new Error('WebSocket connection failed'));
-                };
-
-                ws.onclose = (event) => {
-                    console.log('WebSocket closed:', event.code, event.reason);
-                    if (sessionActive) {
-                        endSession();
-                    }
-                };
-
-                setTimeout(() => {
-                    if (ws.readyState !== WebSocket.OPEN) {
-                        reject(new Error('WebSocket connection timeout'));
-                    }
-                }, 10000);
-            });
+        function showError(message) {
+            errorMessage.textContent = message;
+            setTimeout(() => {
+                errorMessage.textContent = '';
+            }, 5000);
         }
 
         // Handle incoming messages
         function handleMessage(message) {
             switch (message.type) {
+                case 'session.created':
+                    console.log('Session created:', message);
+                    break;
+                    
                 case 'response.audio.delta':
-                case 'response.audio.start':
-                    // AI is speaking
-                    if (!isAISpeaking) {
-                        isAISpeaking = true;
-                        orb.classList.add('speaking');
-                        status.textContent = 'AI is speaking...';
+                    const audio = message.delta || message.data?.delta || message.audio;
+                    if (audio) {
+                        playAudioChunk(audio);
+                        if (!orb.classList.contains('speaking')) {
+                            orb.classList.add('speaking');
+                            status.textContent = 'Assistant is speaking...';
+                        }
                     }
                     break;
-                
+                    
                 case 'response.audio.done':
                 case 'response.done':
-                    // AI finished speaking
-                    isAISpeaking = false;
-                    orb.classList.remove('speaking');
-                    status.textContent = 'Listening...';
+                    // Audio response complete
+                    setTimeout(() => {
+                        orb.classList.remove('speaking');
+                        status.textContent = 'Listening...';
+                    }, 500);
                     break;
-
-                case 'response.text.delta':
-                    // Could show transcription if needed
+                    
+                case 'input_audio_transcription.completed':
+                    console.log('User said:', message.data?.transcript);
                     break;
-
+                    
                 case 'error':
-                    console.error('Server error:', message.error);
-                    status.textContent = 'Error occurred';
+                    console.error('Server error:', message);
+                    showError(message.error || 'An error occurred');
                     break;
             }
         }
 
-        // Handle audio data from AI
-        async function handleAudioData(audioData) {
-            // Play audio through speakers
-            if (!audioContext) {
-                audioContext = new AudioContext();
+        // Play audio chunk
+        async function playAudioChunk(base64Audio) {
+            audioQueue.push(base64Audio);
+            
+            if (!isPlaying) {
+                playNextChunk();
             }
-
-            const audioBuffer = await audioContext.decodeAudioData(audioData);
-            const source = audioContext.createBufferSource();
-            source.buffer = audioBuffer;
-            source.connect(audioContext.destination);
-            source.start();
         }
 
-        // Start audio capture
-        async function startAudioCapture() {
+        async function playNextChunk() {
+            if (audioQueue.length === 0) {
+                isPlaying = false;
+                return;
+            }
+
+            isPlaying = true;
+
             try {
-                mediaStream = await navigator.mediaDevices.getUserMedia({ 
+                if (!playbackContext) {
+                    playbackContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+                }
+
+                const base64Audio = audioQueue.shift();
+                const binaryString = atob(base64Audio);
+                const bytes = new Uint8Array(binaryString.length);
+                
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+
+                // Convert PCM16 to Float32
+                const pcm16 = new Int16Array(bytes.buffer);
+                const float32 = new Float32Array(pcm16.length);
+                
+                for (let i = 0; i < pcm16.length; i++) {
+                    float32[i] = pcm16[i] / 32768.0;
+                }
+
+                // Create and play buffer
+                const audioBuffer = playbackContext.createBuffer(1, float32.length, 24000);
+                audioBuffer.getChannelData(0).set(float32);
+
+                const source = playbackContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(playbackContext.destination);
+                
+                source.onended = () => {
+                    playNextChunk();
+                };
+                
+                source.start();
+
+            } catch (error) {
+                console.error('Audio playback error:', error);
+                isPlaying = false;
+            }
+        }
+
+        // Start audio streaming
+        async function startAudioStream() {
+            try {
+                audioStream = await navigator.mediaDevices.getUserMedia({
                     audio: {
+                        channelCount: 1,
+                        sampleRate: 24000,
+                        sampleSize: 16,
                         echoCancellation: true,
                         noiseSuppression: true,
-                        autoGainControl: true,
-                        sampleRate: 16000
-                    } 
+                        autoGainControl: true
+                    }
                 });
 
-                // Create audio context for processing
-                audioContext = new AudioContext({ sampleRate: 16000 });
-                const source = audioContext.createMediaStreamSource(mediaStream);
-                
-                // Create script processor for capturing audio
-                const processor = audioContext.createScriptProcessor(2048, 1, 1);
-                
-                processor.onaudioprocess = (e) => {
-                    if (ws && ws.readyState === WebSocket.OPEN && !isAISpeaking) {
-                        const inputData = e.inputBuffer.getChannelData(0);
-                        const pcm16 = convertFloat32ToPCM16(inputData);
-                        ws.send(pcm16.buffer);
-                    }
-                };
+                audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+                source = audioContext.createMediaStreamSource(audioStream);
+                processor = audioContext.createScriptProcessor(2048, 1, 1);
 
                 source.connect(processor);
                 processor.connect(audioContext.destination);
 
+                processor.onaudioprocess = (e) => {
+                    if (isStreaming && ws && ws.readyState === WebSocket.OPEN) {
+                        const inputData = e.inputBuffer.getChannelData(0);
+                        
+                        // Convert and send audio
+                        const pcm16 = convertFloat32ToPCM16(inputData);
+                        const base64 = btoa(String.fromCharCode(...new Uint8Array(pcm16.buffer)));
+                        
+                        ws.send(JSON.stringify({
+                            type: 'input_audio_buffer.append',
+                            audio: base64
+                        }));
+                    }
+                };
+
+                isStreaming = true;
+                console.log('Audio streaming started');
+                
             } catch (error) {
-                console.error('Failed to start audio capture:', error);
-                status.textContent = 'Microphone access denied';
+                console.error('Failed to start audio stream:', error);
+                showError('Failed to access microphone. Please check permissions.');
             }
         }
 
@@ -608,26 +647,52 @@
             }
         }
 
-        // End session
-        function endSession() {
-            sessionActive = false;
+        // Stop audio streaming
+        function stopAudioStream() {
+            isStreaming = false;
             
-            // Stop audio
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
-                mediaStream = null;
+            if (audioStream) {
+                audioStream.getTracks().forEach(track => track.stop());
+                audioStream = null;
             }
-
+            
+            if (processor) {
+                processor.disconnect();
+                processor = null;
+            }
+            
+            if (source) {
+                source.disconnect();
+                source = null;
+            }
+            
             if (audioContext) {
                 audioContext.close();
                 audioContext = null;
             }
+            
+            if (playbackContext) {
+                playbackContext.close();
+                playbackContext = null;
+            }
+        }
+
+        // End session
+        function endSession() {
+            sessionActive = false;
+            
+            // Stop audio streaming
+            stopAudioStream();
 
             // Close WebSocket
             if (ws) {
                 ws.close();
                 ws = null;
             }
+
+            // Clear audio queue
+            audioQueue = [];
+            isPlaying = false;
 
             // Reset UI
             orb.classList.remove('speaking');
