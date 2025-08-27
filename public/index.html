@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Parts Manual Assistant</title>
+    <link rel="icon" type="image/png" href="/logo.png">
     <style>
         * {
             margin: 0;
@@ -155,27 +156,27 @@
             border: 2px solid #e0e0e0;
         }
         
-        /* User speaking - blue pulse */
+        /* User speaking - dark grey */
         .orb.user-speaking {
             background: radial-gradient(circle at 30% 30%, 
-                #4a90e2,
-                #357abd
+                #6b6b6b,
+                #4a4a4a
             );
-            border-color: #4a90e2;
-            animation: user-pulse 1s ease-in-out infinite;
+            border-color: #5a5a5a;
+            transition: transform 0.05s ease-out, box-shadow 0.1s ease-out;
             box-shadow: 
-                0 0 60px rgba(74, 144, 226, 0.4),
-                inset 0 0 30px rgba(255, 255, 255, 0.2);
+                0 0 60px rgba(107, 107, 107, 0.4),
+                inset 0 0 30px rgba(255, 255, 255, 0.1);
         }
         
-        /* Assistant speaking - red pulse */
+        /* Assistant speaking - red */
         .orb.assistant-speaking {
             background: radial-gradient(circle at 30% 30%, 
                 #c8102e,
                 #aa182c
             );
             border-color: #c8102e;
-            animation: assistant-pulse 0.8s ease-in-out infinite;
+            transition: transform 0.05s ease-out, box-shadow 0.1s ease-out;
             box-shadow: 
                 0 0 60px rgba(200, 16, 46, 0.4),
                 inset 0 0 30px rgba(255, 255, 255, 0.2);
@@ -256,25 +257,6 @@
             }
         }
         
-        @keyframes user-pulse {
-            0%, 100% {
-                transform: scale(1);
-            }
-            50% {
-                transform: scale(1.1);
-            }
-        }
-        
-        @keyframes assistant-pulse {
-            0%, 100% {
-                transform: scale(1);
-                filter: brightness(1);
-            }
-            50% {
-                transform: scale(1.15);
-                filter: brightness(1.2);
-            }
-        }
 
         .orb::before {
             content: '';
@@ -291,7 +273,7 @@
         .orb.user-speaking::before {
             background: radial-gradient(circle at center, 
                 transparent 40%,
-                rgba(74, 144, 226, 0.2) 60%,
+                rgba(107, 107, 107, 0.2) 60%,
                 transparent 70%
             );
             animation: pulse-ring 1.5s infinite ease-out;
@@ -323,7 +305,7 @@
         .orb.user-speaking::after {
             background: radial-gradient(circle at center, 
                 transparent 50%,
-                rgba(74, 144, 226, 0.15) 70%,
+                rgba(107, 107, 107, 0.15) 70%,
                 transparent 80%
             );
             animation: pulse-ring-2 1.8s infinite ease-out 0.3s;
@@ -378,7 +360,7 @@
         }
         
         .status.user-speaking {
-            color: #4a90e2;
+            color: #5a5a5a;
         }
         
         .status.assistant-speaking {
@@ -450,6 +432,9 @@
     <div class="container">
         <!-- Email Input Section -->
         <div class="email-section" id="emailSection">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <img src="/logo.png" alt="Parts Manual" style="height: 40px; margin-bottom: 15px; opacity: 0.9;">
+            </div>
             <h1 class="title">Parts Manual Finder</h1>
             <p class="subtitle">Enter your email to receive equipment manuals directly</p>
             <div class="email-input-wrapper">
