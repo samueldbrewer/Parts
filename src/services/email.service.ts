@@ -1,7 +1,14 @@
 import nodemailer from 'nodemailer';
 import Imap from 'imap';
 import { simpleParser } from 'mailparser';
-import { logger } from '../utils/logger';
+
+// Note: Replace with your actual logger import
+// import { logger } from '../utils/logger';
+const logger = {
+  info: (msg: string, meta?: any) => console.log(`INFO: ${msg}`, meta || ''),
+  warn: (msg: string, meta?: any) => console.warn(`WARN: ${msg}`, meta || ''),
+  error: (msg: string, meta?: any) => console.error(`ERROR: ${msg}`, meta || ''),
+};
 
 export interface EmailConfig {
   smtp: {
@@ -66,7 +73,7 @@ export class EmailService {
       }
 
       // Create SMTP transporter with Railway-optimized settings
-      this.transporter = nodemailer.createTransporter({
+      this.transporter = nodemailer.createTransport({
         service: 'gmail',
         host: this.config.smtp.host,
         port: 465, // Use secure port 465 instead of 587 for Railway
