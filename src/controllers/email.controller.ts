@@ -2,13 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { EmailService, EmailConfig } from '../services/email.service';
 import { config } from '../config/env';
 
-// Note: Replace with your actual logger import
-// import { logger } from '../utils/logger';
-const logger = {
-  info: (msg: string, meta?: any) => console.log(`INFO: ${msg}`, meta || ''),
-  warn: (msg: string, meta?: any) => console.warn(`WARN: ${msg}`, meta || ''),
-  error: (msg: string, meta?: any) => console.error(`ERROR: ${msg}`, meta || ''),
-};
+import { logger } from '../utils/logger';
 
 interface EmailControllerResponse {
   success: boolean;
