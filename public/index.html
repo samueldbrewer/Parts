@@ -332,9 +332,9 @@
     <button id="endButton" class="end-button">End Session</button>
 
     <script>
-        // Configuration
-        const WS_URL = 'wss://parts.up.railway.app/api/v1/voice/realtime';
-        const API_URL = 'https://parts.up.railway.app';
+        // Configuration - use relative URLs to work with the same domain
+        const WS_URL = `wss://${window.location.host}/api/v1/voice/realtime`;
+        const API_URL = `https://${window.location.host}`;
         
         // DOM Elements
         const emailSection = document.getElementById('emailSection');
@@ -385,16 +385,36 @@
                 orbSection.classList.add('active');
                 status.textContent = 'Connecting...';
 
+                console.log('Getting access token from:', `${API_URL}/api/v1/voice/token`);
+
                 // Get access token first
                 const tokenResponse = await fetch(`${API_URL}/api/v1/voice/token`, {
                     method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
                 });
 
+                console.log('Token response status:', tokenResponse.status);
+
                 if (!tokenResponse.ok) {
-                    throw new Error('Failed to get access token');
+                    const errorText = await tokenResponse.text();
+                    console.error('Token error response:', errorText);
+                    throw new Error(`Failed to get access token: ${tokenResponse.status}`);
                 }
 
-                const { token, sessionId } = await tokenResponse.json();
+                const response = await tokenResponse.json();
+                console.log('Token response received:', response);
+                
+                // Extract token from the wrapped response
+                const token = response.data?.token || response.token;
+                const sessionId = response.data?.sessionId || response.sessionId || 'session-' + Date.now();
+                
+                if (!token) {
+                    throw new Error('No token received from server');
+                }
+
+                console.log('Connecting WebSocket with token:', token.substring(0, 20) + '...');
 
                 // Initialize WebSocket connection
                 await connectWebSocket(token, sessionId);
@@ -427,33 +447,42 @@
         // Connect to WebSocket
         function connectWebSocket(token, sessionId) {
             return new Promise((resolve, reject) => {
-                ws = new WebSocket(`${WS_URL}?token=${token}&sessionId=${sessionId}`);
+                const wsUrl = `${WS_URL}?token=${token}&sessionId=${sessionId}`;
+                console.log('Connecting to WebSocket:', wsUrl);
+                
+                ws = new WebSocket(wsUrl);
                 
                 ws.binaryType = 'arraybuffer';
 
                 ws.onopen = () => {
-                    console.log('WebSocket connected');
+                    console.log('WebSocket connected successfully');
                     resolve();
                 };
 
                 ws.onmessage = async (event) => {
                     if (event.data instanceof ArrayBuffer) {
                         // Handle audio data from AI
+                        console.log('Received audio data:', event.data.byteLength, 'bytes');
                         handleAudioData(event.data);
                     } else {
                         // Handle text messages
-                        const message = JSON.parse(event.data);
-                        handleMessage(message);
+                        try {
+                            const message = JSON.parse(event.data);
+                            console.log('Received message:', message.type);
+                            handleMessage(message);
+                        } catch (e) {
+                            console.error('Failed to parse message:', e);
+                        }
                     }
                 };
 
                 ws.onerror = (error) => {
                     console.error('WebSocket error:', error);
-                    reject(error);
+                    reject(new Error('WebSocket connection failed'));
                 };
 
-                ws.onclose = () => {
-                    console.log('WebSocket closed');
+                ws.onclose = (event) => {
+                    console.log('WebSocket closed:', event.code, event.reason);
                     if (sessionActive) {
                         endSession();
                     }
