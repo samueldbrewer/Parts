@@ -426,7 +426,7 @@
         let audioQueue = [];
         let isUserSpeaking = false;
         let userSpeakingTimeout = null;
-        let silenceThreshold = 0.02; // More sensitive to detect speech earlier
+        let silenceThreshold = 0.015; // Balanced sensitivity for voice detection
         let currentPlaybackSource = null;
         let gainNode = null;
         let isFadingOut = false;
@@ -572,15 +572,9 @@
                     break;
                     
                 case 'response.done':
-                    // Full response complete
-                    setTimeout(() => {
-                        if (!isUserSpeaking) {
-                            orb.classList.remove('assistant-speaking');
-                            status.classList.remove('assistant-speaking');
-                            status.classList.add('listening');
-                            status.textContent = 'Listening for your question...';
-                        }
-                    }, 500);
+                    // Full response complete - but audio might still be playing
+                    // Don't remove animation immediately, let playback finish
+                    console.log('Response done, audio queue length:', audioQueue.length);
                     break;
                     
                 case 'input_audio_transcription.completed':
@@ -650,6 +644,16 @@
         async function playNextChunk() {
             if (audioQueue.length === 0 || isFadingOut) {
                 isPlaying = false;
+                
+                // No more audio to play, remove assistant speaking animation
+                setTimeout(() => {
+                    if (!isPlaying && !isUserSpeaking) {
+                        orb.classList.remove('assistant-speaking');
+                        status.classList.remove('assistant-speaking');
+                        status.classList.add('listening');
+                        status.textContent = 'Listening for your question...';
+                    }
+                }, 200);
                 return;
             }
 
@@ -756,6 +760,13 @@
                             console.log('User interrupting assistant');
                             stopAudioPlayback();
                             
+                            // Update visual immediately when interrupting
+                            orb.classList.remove('assistant-speaking');
+                            status.classList.remove('assistant-speaking');
+                            orb.classList.add('user-speaking');
+                            status.classList.add('user-speaking');
+                            status.textContent = 'Listening to you...';
+                            
                             // Send interruption signal to server
                             ws.send(JSON.stringify({ type: 'response.cancel' }));
                             
@@ -831,7 +842,8 @@
                 const zcr = zeroCrossings / audioData.length;
                 
                 // Human voice typically has ZCR between 0.02 and 0.2
-                return isLoudEnough && zcr > 0.01 && zcr < 0.3;
+                // Be more lenient to avoid cutting off
+                return isLoudEnough && zcr > 0.005 && zcr < 0.4;
             }
             
             return false;
@@ -846,37 +858,43 @@
                     userSpeakingTimeout = null;
                 }
                 
-                // User is speaking
+                // User is speaking - only show animation if not already showing
                 if (!isUserSpeaking) {
                     isUserSpeaking = true;
-                    // Remove assistant speaking classes
-                    orb.classList.remove('assistant-speaking');
-                    status.classList.remove('assistant-speaking');
-                    // Add user speaking classes
-                    orb.classList.add('user-speaking');
-                    status.classList.add('user-speaking');
-                    status.textContent = 'Listening to you...';
+                    // Only change visual if assistant is not speaking
+                    if (!isPlaying) {
+                        // Remove assistant speaking classes
+                        orb.classList.remove('assistant-speaking');
+                        status.classList.remove('assistant-speaking');
+                        // Add user speaking classes
+                        orb.classList.add('user-speaking');
+                        status.classList.add('user-speaking');
+                        status.textContent = 'Listening to you...';
+                    }
                 }
             } else if (isUserSpeaking && !hasSound) {
                 // User stopped speaking - add delay before removing visual
                 if (!userSpeakingTimeout) {
                     userSpeakingTimeout = setTimeout(() => {
                         isUserSpeaking = false;
-                        orb.classList.remove('user-speaking');
-                        status.classList.remove('user-speaking');
+                        
+                        // Only remove animation if assistant is not playing
                         if (!isPlaying) {
+                            orb.classList.remove('user-speaking');
+                            status.classList.remove('user-speaking');
                             status.classList.add('listening');
                             status.textContent = 'Processing...';
-                            
-                            // Send commit audio buffer after user stops speaking
-                            if (ws && ws.readyState === WebSocket.OPEN) {
-                                setTimeout(() => {
-                                    ws.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
-                                }, 100);
-                            }
                         }
+                        
+                        // Send commit audio buffer after user stops speaking
+                        if (ws && ws.readyState === WebSocket.OPEN && !isPlaying) {
+                            setTimeout(() => {
+                                ws.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
+                            }, 100);
+                        }
+                        
                         userSpeakingTimeout = null;
-                    }, 800); // Wait 800ms of silence before processing
+                    }, 600); // Reduced to 600ms for more responsive feel
                 }
             }
         }
