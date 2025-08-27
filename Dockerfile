@@ -51,6 +51,9 @@ COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/swagger.json ./swagger.json
 
+# Copy public directory for static files
+COPY --from=builder /app/public ./public
+
 # Create logs directory
 RUN mkdir -p logs && \
     chown -R nodejs:nodejs logs
