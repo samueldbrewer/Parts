@@ -963,43 +963,33 @@
                     if (isStreaming && ws && ws.readyState === WebSocket.OPEN) {
                         const inputData = e.inputBuffer.getChannelData(0);
                         
-                        // Detect if user is speaking
+                        // SIMPLE FIX: Don't detect speech or allow interruption while assistant is playing
+                        // This completely prevents self-interruption on iPhone
+                        if (isPlaying) {
+                            // Still send audio to server but don't process for interruption
+                            const pcm16 = convertFloat32ToPCM16(inputData);
+                            const base64 = btoa(String.fromCharCode(...new Uint8Array(pcm16.buffer)));
+                            
+                            ws.send(JSON.stringify({
+                                type: 'input_audio_buffer.append',
+                                audio: base64
+                            }));
+                            return; // Exit early - no interruption detection
+                        }
+                        
+                        // Only detect user speech when assistant is NOT playing
                         const hasSound = detectUserSpeaking(inputData);
                         const wasUserSpeaking = isUserSpeaking;
                         updateUserSpeakingState(hasSound);
                         
-                        // If user just started speaking while assistant is playing, interrupt
+                        // This condition will now never trigger (isPlaying is always false here)
                         if (!wasUserSpeaking && isUserSpeaking && isPlaying) {
                             console.log('User interrupting assistant');
                             
-                            // Stop playback FIRST
+                            // This code won't execute with the new logic
+                            // Keeping it for potential future use
                             stopAudioPlayback();
-                            isPlaying = false; // Ensure flag is set
-                            
-                            // Then update visual
-                            isProcessing = false;
-                            // Force remove all classes first
-                            orb.className = 'orb';
-                            status.className = 'status';
-                            
-                            // Then add user speaking classes
-                            setTimeout(() => {
-                                orb.classList.add('user-speaking');
-                                status.classList.add('user-speaking');
-                                status.textContent = 'Listening to you...';
-                                updateOrbScale('user', currentUserAudioLevel);
-                            }, 10);
-                            
-                            // Send interruption signal to server
                             ws.send(JSON.stringify({ type: 'response.cancel' }));
-                            
-                            // Clear input buffer briefly to avoid echo
-                            if (inputBufferDelay) {
-                                clearTimeout(inputBufferDelay);
-                            }
-                            inputBufferDelay = setTimeout(() => {
-                                inputBufferDelay = null;
-                            }, 300); // 300ms delay after interruption
                             return;
                         }
                         
