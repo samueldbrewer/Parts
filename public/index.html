@@ -181,6 +181,49 @@
                 inset 0 0 30px rgba(255, 255, 255, 0.2);
         }
         
+        /* Processing - spinning gradient */
+        .orb.processing {
+            background: linear-gradient(135deg, #f0f0f0, #e0e0e0, #f0f0f0);
+            background-size: 200% 200%;
+            animation: processing-spin 2s linear infinite;
+            border-color: #d0d0d0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .orb.processing::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(90deg, transparent, rgba(200, 16, 46, 0.3), transparent);
+            animation: processing-rotate 1.5s linear infinite;
+            border-radius: 50%;
+        }
+        
+        @keyframes processing-spin {
+            0% {
+                transform: scale(1) rotate(0deg);
+            }
+            50% {
+                transform: scale(1.05) rotate(180deg);
+            }
+            100% {
+                transform: scale(1) rotate(360deg);
+            }
+        }
+        
+        @keyframes processing-rotate {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+        
         @keyframes user-pulse {
             0%, 100% {
                 transform: scale(1);
@@ -309,6 +352,11 @@
         .status.assistant-speaking {
             color: #c8102e;
         }
+        
+        .status.processing {
+            color: #979797;
+            font-style: italic;
+        }
 
         /* Error Message */
         .error {
@@ -433,6 +481,7 @@
         let inputBufferDelay = null;
         let audioChunkBuffer = [];
         let audioBufferTimeout = null;
+        let isProcessing = false;
 
         // Email validation
         function validateEmail(email) {
@@ -556,9 +605,11 @@
                     if (audio) {
                         playAudioChunk(audio);
                         if (!orb.classList.contains('assistant-speaking')) {
-                            // Remove user speaking classes
-                            orb.classList.remove('user-speaking');
-                            status.classList.remove('user-speaking');
+                            // Clear processing state
+                            isProcessing = false;
+                            // Remove all other states
+                            orb.classList.remove('user-speaking', 'processing');
+                            status.classList.remove('user-speaking', 'processing');
                             // Add assistant speaking classes
                             orb.classList.add('assistant-speaking');
                             status.classList.add('assistant-speaking');
@@ -647,9 +698,9 @@
                 
                 // No more audio to play, remove assistant speaking animation
                 setTimeout(() => {
-                    if (!isPlaying && !isUserSpeaking) {
-                        orb.classList.remove('assistant-speaking');
-                        status.classList.remove('assistant-speaking');
+                    if (!isPlaying && !isUserSpeaking && !isProcessing) {
+                        orb.classList.remove('assistant-speaking', 'processing');
+                        status.classList.remove('assistant-speaking', 'processing');
                         status.classList.add('listening');
                         status.textContent = 'Listening for your question...';
                     }
@@ -761,8 +812,9 @@
                             stopAudioPlayback();
                             
                             // Update visual immediately when interrupting
-                            orb.classList.remove('assistant-speaking');
-                            status.classList.remove('assistant-speaking');
+                            isProcessing = false;
+                            orb.classList.remove('assistant-speaking', 'processing');
+                            status.classList.remove('assistant-speaking', 'processing');
                             orb.classList.add('user-speaking');
                             status.classList.add('user-speaking');
                             status.textContent = 'Listening to you...';
@@ -861,11 +913,12 @@
                 // User is speaking - only show animation if not already showing
                 if (!isUserSpeaking) {
                     isUserSpeaking = true;
+                    isProcessing = false; // Clear processing when user speaks
                     // Only change visual if assistant is not speaking
                     if (!isPlaying) {
-                        // Remove assistant speaking classes
-                        orb.classList.remove('assistant-speaking');
-                        status.classList.remove('assistant-speaking');
+                        // Remove all other states
+                        orb.classList.remove('assistant-speaking', 'processing');
+                        status.classList.remove('assistant-speaking', 'processing');
                         // Add user speaking classes
                         orb.classList.add('user-speaking');
                         status.classList.add('user-speaking');
@@ -880,10 +933,13 @@
                         
                         // Only remove animation if assistant is not playing
                         if (!isPlaying) {
+                            // Switch to processing state
+                            isProcessing = true;
                             orb.classList.remove('user-speaking');
                             status.classList.remove('user-speaking');
-                            status.classList.add('listening');
-                            status.textContent = 'Processing...';
+                            orb.classList.add('processing');
+                            status.classList.add('processing');
+                            status.textContent = 'Processing your request...';
                         }
                         
                         // Send commit audio buffer after user stops speaking
@@ -972,13 +1028,15 @@
             isFadingOut = false;
 
             // Reset UI
-            orb.classList.remove('speaking');
+            orb.classList.remove('user-speaking', 'assistant-speaking', 'processing');
+            status.classList.remove('user-speaking', 'assistant-speaking', 'processing');
             orbSection.classList.remove('active');
             emailSection.classList.remove('hidden');
             endButton.classList.remove('visible');
             status.classList.remove('listening');
             emailInput.value = '';
             userEmail = '';
+            isProcessing = false;
         }
 
         // Event listeners
