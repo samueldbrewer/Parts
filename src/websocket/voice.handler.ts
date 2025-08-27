@@ -28,16 +28,27 @@ export class VoiceWebSocketHandler {
   }
 
   private setupWebSocketServer(): void {
-    this.wss.on('connection', async (ws: WebSocket, request: IncomingMessage, userId: string) => {
+    this.wss.on('connection', async (ws: WebSocket, request: IncomingMessage, authData: any) => {
       const sessionId = uuidv4();
-      logger.info('New voice WebSocket connection', { sessionId, userId });
+      const userId = authData.userId;
+      const userEmail = authData.email;
+      logger.info('New voice WebSocket connection', { sessionId, userId, userEmail });
 
       try {
+        // Build system instructions with user context
+        let instructions =
+          'You are a specialized technical manual assistant designed to help users find and obtain technical manuals, user guides, service manuals, and parts lists for commercial and residential equipment.';
+        if (userEmail) {
+          instructions += `\n\nThe user's email address is: ${userEmail}. You will use this email to send them any manuals they request.`;
+        }
+        instructions +=
+          '\n\nBe concise and friendly. Focus on helping them find the specific manuals they need.';
+
         const openaiConfig: RealtimeConfig = {
           apiKey: config.openai.apiKey,
           model: 'gpt-4o-realtime-preview-2024-12-17',
           voice: 'alloy',
-          instructions: 'You are a helpful assistant. Be concise and friendly.',
+          instructions,
           turnDetection: 'server_vad',
           inputAudioFormat: 'pcm16',
           outputAudioFormat: 'pcm16',
@@ -60,9 +71,9 @@ export class VoiceWebSocketHandler {
         this.sessions.set(sessionId, session);
         this.resetSessionTimeout(sessionId);
 
-        await this.createVoiceSessionRecord(sessionId, userId);
+        await this.createVoiceSessionRecord(sessionId, userId, userEmail);
 
-        await openaiService.connect(sessionId, userId);
+        await openaiService.connect(sessionId, userEmail || userId);
 
         this.setupOpenAIListeners(session);
         this.setupClientListeners(session);
@@ -357,16 +368,16 @@ export class VoiceWebSocketHandler {
 
   async handleUpgrade(request: IncomingMessage, socket: any, head: Buffer): Promise<void> {
     try {
-      const userId = await verifyWebSocketToken(request);
+      const authData = await verifyWebSocketToken(request);
 
-      if (!userId) {
+      if (!authData) {
         socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
         socket.destroy();
         return;
       }
 
       this.wss.handleUpgrade(request, socket, head, (ws) => {
-        this.wss.emit('connection', ws, request, userId);
+        this.wss.emit('connection', ws, request, authData);
       });
     } catch (error) {
       logger.error('WebSocket upgrade failed', { error });
@@ -375,7 +386,11 @@ export class VoiceWebSocketHandler {
     }
   }
 
-  private async createVoiceSessionRecord(sessionId: string, userId: string): Promise<void> {
+  private async createVoiceSessionRecord(
+    sessionId: string,
+    userId: string,
+    userEmail?: string,
+  ): Promise<void> {
     try {
       await prisma.voiceSession.create({
         data: {
@@ -387,6 +402,7 @@ export class VoiceWebSocketHandler {
           outputTokens: 0,
           inputAudioTokens: 0,
           outputAudioTokens: 0,
+          metadata: userEmail ? { email: userEmail } : {},
         },
       });
     } catch (error) {

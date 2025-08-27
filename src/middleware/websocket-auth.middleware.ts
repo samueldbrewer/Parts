@@ -3,13 +3,21 @@ import jwt from 'jsonwebtoken';
 import { config } from '../config/env';
 import { logger } from '../utils/logger';
 
-export async function verifyWebSocketToken(request: IncomingMessage): Promise<string | null> {
+export interface WebSocketAuthResult {
+  userId: string;
+  email?: string;
+}
+
+export async function verifyWebSocketToken(
+  request: IncomingMessage,
+): Promise<WebSocketAuthResult | null> {
   try {
     let token: string | undefined;
 
     // Check for token in query parameters (common for WebSocket)
     const url = new URL(request.url || '', `http://${request.headers.host}`);
     token = url.searchParams.get('token') || undefined;
+    const email = url.searchParams.get('email') || undefined;
 
     // If not in query, check Authorization header
     if (!token && request.headers.authorization) {
@@ -25,7 +33,7 @@ export async function verifyWebSocketToken(request: IncomingMessage): Promise<st
       // For demo purposes, accept the master API key
       // In production, you'd validate against user-specific API keys
       if (apiKey === config.apiKey.masterKey) {
-        return 'api-key-user'; // Return a default user ID for API key auth
+        return { userId: 'api-key-user', email }; // Return a default user ID for API key auth
       }
     }
 
@@ -42,7 +50,7 @@ export async function verifyWebSocketToken(request: IncomingMessage): Promise<st
       return null;
     }
 
-    return decoded.userId || decoded.id;
+    return { userId: decoded.userId || decoded.id, email };
   } catch (error) {
     logger.error('WebSocket authentication failed', { error });
     return null;

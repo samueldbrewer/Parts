@@ -488,9 +488,9 @@
 
                 console.log('Connecting WebSocket with token:', token.substring(0, 20) + '...');
 
-                // Connect WebSocket with token
+                // Connect WebSocket with token and user email
                 const wsUrl = response.data.url.replace('http://', 'ws://').replace('https://', 'wss://');
-                ws = new WebSocket(`${wsUrl}?token=${token}`);
+                ws = new WebSocket(`${wsUrl}?token=${token}&email=${encodeURIComponent(userEmail)}`);
                 
                 ws.onopen = async () => {
                     console.log('WebSocket connected');
@@ -521,13 +521,6 @@
                         endSession();
                     }
                 };
-
-                // Send initial message with user's email after connection is ready
-                setTimeout(() => {
-                    if (ws && ws.readyState === WebSocket.OPEN) {
-                        sendTextMessage(`My email is ${userEmail}. I'm looking for equipment manuals.`);
-                    }
-                }, 2000);
 
             } catch (error) {
                 console.error('Failed to start session:', error);
