@@ -82,7 +82,13 @@ export class EmailService {
       });
 
       // Skip SMTP verification entirely for Railway compatibility
-      logger.info('SMTP transporter created, skipping verification for Railway compatibility');
+      logger.info('SMTP transporter created with credentials:', {
+        user: this.config.smtp.user,
+        userLength: this.config.smtp.user?.length,
+        passLength: this.config.smtp.pass?.length,
+        host: this.config.smtp.host,
+        port: this.config.smtp.port,
+      });
 
       // Initialize IMAP for inbox reading
       this.imap = new Imap({
