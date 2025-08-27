@@ -60,25 +60,16 @@ export class EmailService {
       // Create SMTP transporter with connection pooling
       this.transporter = nodemailer.createTransport({
         service: 'gmail',
-        host: this.config.smtp.host,
-        port: this.config.smtp.port,
-        secure: false,
-        requireTLS: true,
         auth: {
-          user: this.config.smtp.user, // Use direct config values
-          pass: this.config.smtp.pass,
+          user: 'partnerplustestsdb@gmail.com', // Test with exact working credentials
+          pass: 'mfpnszmgrpblguxu',
         },
         tls: {
-          rejectUnauthorized: false, // CRITICAL for Railway/cloud
+          rejectUnauthorized: false,
         },
-        // Connection pooling for efficiency
         pool: true,
         maxConnections: 5,
         maxMessages: 100,
-        // Cloud-optimized timeouts
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 20000,
       });
 
       // Skip SMTP verification entirely for Railway compatibility
