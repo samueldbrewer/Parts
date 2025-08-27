@@ -506,8 +506,6 @@
         let gainNode = null;
         let isFadingOut = false;
         let inputBufferDelay = null;
-        let audioChunkBuffer = [];
-        let audioBufferTimeout = null;
         let isProcessing = false;
 
         // Email validation
@@ -672,25 +670,15 @@
             }
         }
 
-        // Play audio chunk with buffering
+        // Play audio chunk - simple direct approach
         async function playAudioChunk(base64Audio) {
-            // Add to buffer for smoother playback
-            audioChunkBuffer.push(base64Audio);
+            // Direct queue without complex buffering
+            audioQueue.push(base64Audio);
             
-            // Clear existing timeout
-            if (audioBufferTimeout) {
-                clearTimeout(audioBufferTimeout);
+            // Start playing if not already playing
+            if (!isPlaying && !isFadingOut) {
+                playNextChunk();
             }
-            
-            // Wait a bit to collect more chunks for smoother playback
-            audioBufferTimeout = setTimeout(() => {
-                while (audioChunkBuffer.length > 0) {
-                    audioQueue.push(audioChunkBuffer.shift());
-                }
-                if (!isPlaying && !isFadingOut) {
-                    playNextChunk();
-                }
-            }, 50); // 50ms buffer
         }
         
         // Stop audio playback with fade out
@@ -783,13 +771,13 @@
                     float32[i] = pcm16[i] / 32768.0;
                 }
 
-                // Apply smoothing window to reduce clicks
-                const windowSize = 128;
+                // Simple fade to reduce clicks - minimal processing
+                const windowSize = 64; // Smaller window
                 for (let i = 0; i < windowSize && i < float32.length; i++) {
-                    float32[i] *= i / windowSize; // Fade in
+                    float32[i] *= i / windowSize; // Simple linear fade in
                 }
                 for (let i = float32.length - windowSize; i < float32.length && i >= 0; i++) {
-                    float32[i] *= (float32.length - i) / windowSize; // Fade out
+                    float32[i] *= (float32.length - i) / windowSize; // Simple linear fade out
                 }
 
                 // Create and play buffer
