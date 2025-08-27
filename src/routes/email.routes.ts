@@ -12,6 +12,9 @@ router.use(apiLimiter);
 // Email health check
 router.get('/health', emailController.getHealth);
 
+// Test route without middleware
+router.post('/test', emailController.sendEmail);
+
 // Send email
 router.post(
   '/send',
