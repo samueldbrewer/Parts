@@ -55,7 +55,10 @@ class EmailController {
    * Send an email
    */
   sendEmail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    logger.info('Email send request received:', req.body);
+
     if (!this.emailService) {
+      logger.error('Email service not configured');
       res.status(503).json({
         success: false,
         error: 'Email service not configured',
@@ -65,6 +68,7 @@ class EmailController {
 
     try {
       const { to, subject, text, html } = req.body;
+      logger.info('Processing email send for:', { to, subject });
 
       if (!to || !subject || !text) {
         res.status(400).json({
@@ -84,9 +88,12 @@ class EmailController {
         return;
       }
 
+      logger.info('Calling email service sendEmail...');
       const result = await this.emailService.sendEmail(to, subject, text, html);
+      logger.info('Email service returned:', result);
 
       if (result.success) {
+        logger.info('Email sent successfully, sending success response');
         res.status(200).json({
           success: true,
           data: {
@@ -95,6 +102,7 @@ class EmailController {
           },
         });
       } else {
+        logger.error('Email send failed, sending error response:', result.error);
         res.status(500).json({
           success: false,
           error: result.error,
