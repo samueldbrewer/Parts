@@ -426,7 +426,13 @@
         let audioQueue = [];
         let isUserSpeaking = false;
         let userSpeakingTimeout = null;
-        let silenceThreshold = 0.01;
+        let silenceThreshold = 0.02; // More sensitive to detect speech earlier
+        let currentPlaybackSource = null;
+        let gainNode = null;
+        let isFadingOut = false;
+        let inputBufferDelay = null;
+        let audioChunkBuffer = [];
+        let audioBufferTimeout = null;
 
         // Email validation
         function validateEmail(email) {
@@ -562,13 +568,18 @@
                     break;
                     
                 case 'response.audio.done':
+                    // Audio chunk complete, more may be coming
+                    break;
+                    
                 case 'response.done':
-                    // Audio response complete
+                    // Full response complete
                     setTimeout(() => {
-                        orb.classList.remove('assistant-speaking');
-                        status.classList.remove('assistant-speaking');
-                        status.classList.add('listening');
-                        status.textContent = 'Listening for your question...';
+                        if (!isUserSpeaking) {
+                            orb.classList.remove('assistant-speaking');
+                            status.classList.remove('assistant-speaking');
+                            status.classList.add('listening');
+                            status.textContent = 'Listening for your question...';
+                        }
                     }, 500);
                     break;
                     
@@ -583,17 +594,61 @@
             }
         }
 
-        // Play audio chunk
+        // Play audio chunk with buffering
         async function playAudioChunk(base64Audio) {
-            audioQueue.push(base64Audio);
+            // Add to buffer for smoother playback
+            audioChunkBuffer.push(base64Audio);
             
-            if (!isPlaying) {
-                playNextChunk();
+            // Clear existing timeout
+            if (audioBufferTimeout) {
+                clearTimeout(audioBufferTimeout);
             }
+            
+            // Wait a bit to collect more chunks for smoother playback
+            audioBufferTimeout = setTimeout(() => {
+                while (audioChunkBuffer.length > 0) {
+                    audioQueue.push(audioChunkBuffer.shift());
+                }
+                if (!isPlaying && !isFadingOut) {
+                    playNextChunk();
+                }
+            }, 50); // 50ms buffer
+        }
+        
+        // Stop audio playback with fade out
+        function stopAudioPlayback() {
+            if (!isPlaying || !gainNode || !playbackContext) return;
+            
+            isFadingOut = true;
+            const currentTime = playbackContext.currentTime;
+            
+            // Fade out over 200ms
+            gainNode.gain.cancelScheduledValues(currentTime);
+            gainNode.gain.setValueAtTime(gainNode.gain.value, currentTime);
+            gainNode.gain.linearRampToValueAtTime(0, currentTime + 0.2);
+            
+            // Stop after fade out
+            setTimeout(() => {
+                if (currentPlaybackSource) {
+                    currentPlaybackSource.stop();
+                    currentPlaybackSource = null;
+                }
+                
+                // Clear audio queue
+                audioQueue = [];
+                audioChunkBuffer = [];
+                isPlaying = false;
+                isFadingOut = false;
+                
+                // Reset gain for next playback
+                if (gainNode) {
+                    gainNode.gain.value = 0;
+                }
+            }, 200);
         }
 
         async function playNextChunk() {
-            if (audioQueue.length === 0) {
+            if (audioQueue.length === 0 || isFadingOut) {
                 isPlaying = false;
                 return;
             }
@@ -603,6 +658,9 @@
             try {
                 if (!playbackContext) {
                     playbackContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+                    gainNode = playbackContext.createGain();
+                    gainNode.connect(playbackContext.destination);
+                    gainNode.gain.value = 0; // Start at 0 for fade in
                 }
 
                 const base64Audio = audioQueue.shift();
@@ -621,16 +679,38 @@
                     float32[i] = pcm16[i] / 32768.0;
                 }
 
+                // Apply smoothing window to reduce clicks
+                const windowSize = 128;
+                for (let i = 0; i < windowSize && i < float32.length; i++) {
+                    float32[i] *= i / windowSize; // Fade in
+                }
+                for (let i = float32.length - windowSize; i < float32.length && i >= 0; i++) {
+                    float32[i] *= (float32.length - i) / windowSize; // Fade out
+                }
+
                 // Create and play buffer
                 const audioBuffer = playbackContext.createBuffer(1, float32.length, 24000);
                 audioBuffer.getChannelData(0).set(float32);
 
                 const source = playbackContext.createBufferSource();
                 source.buffer = audioBuffer;
-                source.connect(playbackContext.destination);
+                source.connect(gainNode);
+                
+                currentPlaybackSource = source;
+                
+                // Smooth fade in
+                const currentTime = playbackContext.currentTime;
+                if (!isFadingOut) {
+                    gainNode.gain.cancelScheduledValues(currentTime);
+                    gainNode.gain.setValueAtTime(gainNode.gain.value, currentTime);
+                    gainNode.gain.linearRampToValueAtTime(1.0, currentTime + 0.05); // 50ms fade in
+                }
                 
                 source.onended = () => {
-                    playNextChunk();
+                    currentPlaybackSource = null;
+                    if (!isFadingOut) {
+                        playNextChunk();
+                    }
                 };
                 
                 source.start();
@@ -668,7 +748,31 @@
                         
                         // Detect if user is speaking
                         const hasSound = detectUserSpeaking(inputData);
+                        const wasUserSpeaking = isUserSpeaking;
                         updateUserSpeakingState(hasSound);
+                        
+                        // If user just started speaking while assistant is playing, interrupt
+                        if (!wasUserSpeaking && isUserSpeaking && isPlaying) {
+                            console.log('User interrupting assistant');
+                            stopAudioPlayback();
+                            
+                            // Send interruption signal to server
+                            ws.send(JSON.stringify({ type: 'response.cancel' }));
+                            
+                            // Clear input buffer briefly to avoid echo
+                            if (inputBufferDelay) {
+                                clearTimeout(inputBufferDelay);
+                            }
+                            inputBufferDelay = setTimeout(() => {
+                                inputBufferDelay = null;
+                            }, 300); // 300ms delay after interruption
+                            return;
+                        }
+                        
+                        // Don't send audio during the delay period after interruption
+                        if (inputBufferDelay) {
+                            return;
+                        }
                         
                         // Convert and send audio
                         const pcm16 = convertFloat32ToPCM16(inputData);
@@ -700,19 +804,42 @@
             return pcm16;
         }
         
-        // Detect if user is speaking
+        // Detect if user is speaking with adaptive threshold
         function detectUserSpeaking(audioData) {
             let sum = 0;
+            let maxAmplitude = 0;
+            
             for (let i = 0; i < audioData.length; i++) {
                 sum += audioData[i] * audioData[i];
+                maxAmplitude = Math.max(maxAmplitude, Math.abs(audioData[i]));
             }
+            
             const rms = Math.sqrt(sum / audioData.length);
-            return rms > silenceThreshold;
+            
+            // Use combination of RMS and peak detection for better accuracy
+            const isLoudEnough = rms > silenceThreshold || maxAmplitude > 0.1;
+            
+            // Additional frequency analysis for voice detection
+            if (isLoudEnough && audioData.length > 0) {
+                // Simple zero-crossing rate for basic voice detection
+                let zeroCrossings = 0;
+                for (let i = 1; i < audioData.length; i++) {
+                    if ((audioData[i] >= 0) !== (audioData[i - 1] >= 0)) {
+                        zeroCrossings++;
+                    }
+                }
+                const zcr = zeroCrossings / audioData.length;
+                
+                // Human voice typically has ZCR between 0.02 and 0.2
+                return isLoudEnough && zcr > 0.01 && zcr < 0.3;
+            }
+            
+            return false;
         }
         
         // Update user speaking state
         function updateUserSpeakingState(hasSound) {
-            if (hasSound && !isPlaying) {
+            if (hasSound) {
                 // Clear any existing timeout
                 if (userSpeakingTimeout) {
                     clearTimeout(userSpeakingTimeout);
@@ -740,9 +867,16 @@
                         if (!isPlaying) {
                             status.classList.add('listening');
                             status.textContent = 'Processing...';
+                            
+                            // Send commit audio buffer after user stops speaking
+                            if (ws && ws.readyState === WebSocket.OPEN) {
+                                setTimeout(() => {
+                                    ws.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
+                                }, 100);
+                            }
                         }
                         userSpeakingTimeout = null;
-                    }, 500);
+                    }, 800); // Wait 800ms of silence before processing
                 }
             }
         }
@@ -801,6 +935,9 @@
         function endSession() {
             sessionActive = false;
             
+            // Stop audio playback immediately
+            stopAudioPlayback();
+            
             // Stop audio streaming
             stopAudioStream();
 
@@ -810,9 +947,11 @@
                 ws = null;
             }
 
-            // Clear audio queue
+            // Clear audio queue and buffers
             audioQueue = [];
+            audioChunkBuffer = [];
             isPlaying = false;
+            isFadingOut = false;
 
             // Reset UI
             orb.classList.remove('speaking');
