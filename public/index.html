@@ -683,17 +683,17 @@
         
         // Stop audio playback with fade out
         function stopAudioPlayback() {
-            if (!isPlaying || !gainNode || !playbackContext) return;
+            if (!gainNode || !playbackContext) return;
             
             isFadingOut = true;
             const currentTime = playbackContext.currentTime;
             
-            // Fade out over 200ms
+            // Faster fade out for interruption (100ms)
             gainNode.gain.cancelScheduledValues(currentTime);
             gainNode.gain.setValueAtTime(gainNode.gain.value, currentTime);
-            gainNode.gain.linearRampToValueAtTime(0, currentTime + 0.2);
+            gainNode.gain.linearRampToValueAtTime(0, currentTime + 0.1);
             
-            // Stop after fade out
+            // Stop after fade out (faster for interruption)
             setTimeout(() => {
                 if (currentPlaybackSource) {
                     try {
@@ -704,29 +704,16 @@
                     currentPlaybackSource = null;
                 }
                 
-                // Clear audio queue
+                // Clear audio queue immediately
                 audioQueue = [];
-                audioChunkBuffer = [];
                 isPlaying = false;
                 isFadingOut = false;
-                
-                // Cancel any animation frames
-                if (animationFrame) {
-                    cancelAnimationFrame(animationFrame);
-                    animationFrame = null;
-                }
                 
                 // Reset gain for next playback
                 if (gainNode) {
                     gainNode.gain.value = 0;
                 }
-                
-                // Remove assistant visuals
-                orb.classList.remove('assistant-speaking');
-                status.classList.remove('assistant-speaking');
-                orb.style.transform = 'scale(1)';
-                orb.style.boxShadow = '';
-            }, 200);
+            }, 100); // Faster cleanup
         }
 
         async function playNextChunk() {
@@ -838,34 +825,41 @@
                     if (isStreaming && ws && ws.readyState === WebSocket.OPEN) {
                         const inputData = e.inputBuffer.getChannelData(0);
                         
-                        // SIMPLE FIX: Don't detect speech or allow interruption while assistant is playing
-                        // This completely prevents self-interruption on iPhone
-                        if (isPlaying) {
-                            // Still send audio to server but don't process for interruption
-                            const pcm16 = convertFloat32ToPCM16(inputData);
-                            const base64 = btoa(String.fromCharCode(...new Uint8Array(pcm16.buffer)));
-                            
-                            ws.send(JSON.stringify({
-                                type: 'input_audio_buffer.append',
-                                audio: base64
-                            }));
-                            return; // Exit early - no interruption detection
+                        // Detect user speech with higher threshold when assistant is playing
+                        // This helps reduce false positives from echo
+                        const threshold = isPlaying ? silenceThreshold * 3 : silenceThreshold;
+                        const hasSound = detectUserSpeaking(inputData, threshold);
+                        const wasUserSpeaking = isUserSpeaking;
+                        
+                        // Only update speaking state if loud enough (reduces echo false positives)
+                        if (hasSound || (!hasSound && isUserSpeaking)) {
+                            updateUserSpeakingState(hasSound);
                         }
                         
-                        // Only detect user speech when assistant is NOT playing
-                        const hasSound = detectUserSpeaking(inputData);
-                        const wasUserSpeaking = isUserSpeaking;
-                        updateUserSpeakingState(hasSound);
-                        
-                        // This condition will now never trigger (isPlaying is always false here)
+                        // If user just started speaking while assistant is playing, interrupt
                         if (!wasUserSpeaking && isUserSpeaking && isPlaying) {
-                            console.log('User interrupting assistant');
+                            console.log('User interrupting assistant - fading out audio');
                             
-                            // This code won't execute with the new logic
-                            // Keeping it for potential future use
+                            // Immediately fade out and stop audio
                             stopAudioPlayback();
+                            
+                            // Clear the audio queue to stop further playback
+                            audioQueue = [];
+                            
+                            // Cancel the server's response stream
                             ws.send(JSON.stringify({ type: 'response.cancel' }));
-                            return;
+                            
+                            // Update UI to show user is speaking
+                            orb.classList.remove('assistant-speaking', 'processing');
+                            status.classList.remove('assistant-speaking', 'processing');
+                            orb.classList.add('user-speaking');
+                            status.classList.add('user-speaking');
+                            status.textContent = 'Listening to you...';
+                            
+                            // Small delay before processing new input
+                            setTimeout(() => {
+                                // Continue processing
+                            }, 100);
                         }
                         
                         // Don't send audio during the delay period after interruption
@@ -904,7 +898,8 @@
         }
         
         // Detect if user is speaking with adaptive threshold
-        function detectUserSpeaking(audioData) {
+        function detectUserSpeaking(audioData, customThreshold) {
+            const threshold = customThreshold || silenceThreshold;
             let sum = 0;
             let maxAmplitude = 0;
             
@@ -916,7 +911,7 @@
             const rms = Math.sqrt(sum / audioData.length);
             
             // Use combination of RMS and peak detection for better accuracy
-            const isLoudEnough = rms > silenceThreshold || maxAmplitude > 0.1;
+            const isLoudEnough = rms > threshold || maxAmplitude > 0.1;
             
             // Additional frequency analysis for voice detection
             if (isLoudEnough && audioData.length > 0) {
