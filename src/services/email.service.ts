@@ -69,9 +69,9 @@ export class EmailService {
       this.transporter = nodemailer.createTransporter({
         service: 'gmail',
         host: this.config.smtp.host,
-        port: this.config.smtp.port,
-        secure: false,
-        requireTLS: true, // CRITICAL for Gmail
+        port: 465, // Use secure port 465 instead of 587 for Railway
+        secure: true, // Use SSL for port 465
+        requireTLS: false, // Not needed for secure=true
         auth: {
           user: cleanUser,
           pass: cleanPass,
