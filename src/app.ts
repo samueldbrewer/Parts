@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
 import swaggerUi from 'swagger-ui-express';
+import path from 'path';
 
 import { config } from './config/env';
 import routes from './routes';
@@ -20,7 +21,8 @@ export const createApp = (): Application => {
   // Security middleware
   app.use(
     helmet({
-      contentSecurityPolicy: config.env === 'production',
+      contentSecurityPolicy: false, // Disabled to allow inline scripts in our HTML
+      crossOriginEmbedderPolicy: false,
     }),
   );
 
@@ -98,9 +100,17 @@ export const createApp = (): Application => {
     }
   }
 
+  // Serve static files (our voice interface)
+  app.use(express.static(path.join(__dirname, '../public')));
+
   // API routes
   app.use(`/api/${config.apiVersion}`, routes);
   app.use('/api', routes); // Support without version
+
+  // Serve index.html for root path
+  app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/index.html'));
+  });
 
   // 404 handler
   app.use(notFoundHandler);
