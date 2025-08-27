@@ -181,49 +181,64 @@
                 inset 0 0 30px rgba(255, 255, 255, 0.2);
         }
         
-        /* Processing - more obvious spinner */
+        /* Processing - subtle swirling effect */
         .orb.processing {
-            background: conic-gradient(
-                from 0deg,
-                #f0f0f0 0deg,
-                #c8102e 45deg,
-                #f0f0f0 90deg,
-                #f0f0f0 270deg,
-                #c8102e 315deg,
-                #f0f0f0 360deg
+            background: radial-gradient(circle at 30% 30%, 
+                #f5f5f5,
+                #e8e8e8
             );
-            animation: processing-spin 1s linear infinite;
             border-color: #d0d0d0;
             position: relative;
             overflow: hidden;
+            animation: processing-gentle 3s ease-in-out infinite;
         }
         
         .orb.processing::before {
             content: '';
             position: absolute;
-            top: 10%;
-            left: 10%;
-            right: 10%;
-            bottom: 10%;
-            background: #ffffff;
+            top: -50%;
+            left: -50%;
+            right: -50%;
+            bottom: -50%;
+            background: radial-gradient(
+                circle at 30% 70%,
+                transparent 30%,
+                rgba(200, 200, 200, 0.1) 50%,
+                transparent 70%
+            );
+            animation: processing-swirl 2s linear infinite;
             border-radius: 50%;
-            z-index: 1;
         }
         
         .orb.processing::after {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(90deg, transparent 30%, rgba(255, 255, 255, 0.5) 50%, transparent 70%);
-            animation: processing-sweep 1.5s linear infinite;
+            top: -30%;
+            left: -30%;
+            right: -30%;
+            bottom: -30%;
+            background: radial-gradient(
+                circle at 70% 30%,
+                transparent 40%,
+                rgba(150, 150, 150, 0.08) 60%,
+                transparent 80%
+            );
+            animation: processing-swirl-reverse 3s linear infinite;
             border-radius: 50%;
-            z-index: 2;
         }
         
-        @keyframes processing-spin {
+        @keyframes processing-gentle {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 0.9;
+            }
+            50% {
+                transform: scale(1.02);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes processing-swirl {
             0% {
                 transform: rotate(0deg);
             }
@@ -232,12 +247,12 @@
             }
         }
         
-        @keyframes processing-sweep {
+        @keyframes processing-swirl-reverse {
             0% {
                 transform: rotate(0deg);
             }
             100% {
-                transform: rotate(360deg);
+                transform: rotate(-360deg);
             }
         }
         
