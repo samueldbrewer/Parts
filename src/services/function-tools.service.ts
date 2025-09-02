@@ -334,36 +334,108 @@ export class FunctionToolsService {
     }
 
     try {
+      // Create dynamic subject line based on equipment
+      const manualTypeText =
+        args.manual_type === 'service_manual'
+          ? 'Service Manual'
+          : args.manual_type === 'user_manual'
+            ? 'User Manual'
+            : args.manual_type === 'parts_list'
+              ? 'Parts List'
+              : args.manual_type === 'installation_guide'
+                ? 'Installation Guide'
+                : 'Technical Manual';
+
+      const subject = `📘 ${args.equipment_name} ${manualTypeText} - Ready to Download`;
+
+      // Professional HTML email template
+      const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
+    <div style="background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <!-- Header -->
+        <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #c8102e;">
+            <h1 style="color: #c8102e; margin: 0; font-size: 28px;">📘 Manual Found!</h1>
+            <p style="color: #666; margin-top: 10px; font-size: 16px;">${args.equipment_name}</p>
+        </div>
+        
+        <!-- Main Content -->
+        <div style="margin-bottom: 30px;">
+            <p style="font-size: 16px; color: #333;">Your requested ${manualTypeText.toLowerCase()} is ready for download:</p>
+            
+            <!-- Download Button -->
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="${args.manual_url}" style="display: inline-block; padding: 15px 35px; background: linear-gradient(135deg, #c8102e 0%, #e63946 100%); color: white; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 15px rgba(200, 16, 46, 0.3); transition: all 0.3s;">📥 Download ${manualTypeText}</a>
+            </div>
+            
+            <!-- Manual Details -->
+            <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <h3 style="color: #c8102e; margin-top: 0; font-size: 18px;">📋 Manual Details</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 8px 0; color: #666; width: 40%;"><strong>Equipment:</strong></td>
+                        <td style="padding: 8px 0; color: #333;">${args.equipment_name}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; color: #666;"><strong>Manual Type:</strong></td>
+                        <td style="padding: 8px 0; color: #333;">${manualTypeText}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; color: #666;"><strong>Format:</strong></td>
+                        <td style="padding: 8px 0; color: #333;">PDF Document</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <!-- Alternative Link -->
+            <div style="margin-top: 20px; padding: 15px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                <p style="margin: 0; font-size: 14px; color: #856404;">
+                    <strong>💡 Tip:</strong> If the button doesn't work, copy this link:<br>
+                    <span style="word-break: break-all; font-size: 12px; color: #0066cc;">${args.manual_url}</span>
+                </p>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center;">
+            <p style="color: #999; font-size: 14px; margin: 0;">Parts Manual Assistant</p>
+            <p style="color: #999; font-size: 12px; margin-top: 5px;">Your technical documentation partner</p>
+        </div>
+    </div>
+</body>
+</html>
+      `;
+
+      // Plain text version
+      const textContent = `${args.equipment_name} ${manualTypeText}
+
+Your requested manual is ready for download:
+
+${args.manual_url}
+
+Manual Details:
+- Equipment: ${args.equipment_name}
+- Type: ${manualTypeText}
+- Format: PDF Document
+
+If you have any issues accessing the manual, simply copy and paste the link above into your browser.
+
+Best regards,
+Parts Manual Assistant`;
+
       // Send email via PartnerGPT API
       const emailResponse = await axios.post(
         'https://partnergpt.up.railway.app/api/email/send',
         {
           to: args.to_email,
-          subject: `${args.equipment_name} - Technical Manual`,
-          text: `Hello,
-
-Here is the ${args.manual_type || 'technical'} manual for ${args.equipment_name} that you requested:
-
-${args.manual_url}
-
-Click the link above to download or view the PDF manual.
-
-Equipment: ${args.equipment_name}
-Manual Type: ${args.manual_type || 'Technical Manual'}
-
-Best regards,
-Parts Manual Service`,
-          html: `
-            <h2>${args.equipment_name} - Technical Manual</h2>
-            <p>Hello,</p>
-            <p>Here is the ${args.manual_type || 'technical'} manual for <strong>${args.equipment_name}</strong> that you requested:</p>
-            <p><a href="${args.manual_url}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Download Manual PDF</a></p>
-            <p><strong>Direct Link:</strong> <a href="${args.manual_url}">${args.manual_url}</a></p>
-            <hr>
-            <p><strong>Equipment:</strong> ${args.equipment_name}<br>
-            <strong>Manual Type:</strong> ${args.manual_type || 'Technical Manual'}</p>
-            <p>Best regards,<br>Parts Manual Service</p>
-          `,
+          subject,
+          text: textContent,
+          html: htmlContent,
         },
         {
           headers: {

@@ -39,9 +39,9 @@ export class VoiceWebSocketHandler {
         let instructions =
           'You are a friendly manual finder assistant. When you hear equipment names/models, search for technical manuals immediately.\n\n';
         instructions +=
-          'Be conversational and natural. Default to service manuals. Keep responses concise but friendly.\n';
+          'Be conversational and natural. Default to service manuals. Always email manuals after finding them.\n';
         if (userEmail) {
-          instructions += `User email: ${userEmail} - Send manuals here when requested.\n`;
+          instructions += `User email: ${userEmail} - Always email manuals to this address after finding them.\n`;
         }
         instructions += 'Help users find the technical documentation they need.';
 

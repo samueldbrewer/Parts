@@ -131,9 +131,12 @@ CONVERSATIONAL:
 - Keep responses brief but warm
 
 WHEN YOU FIND MANUALS:
-- "Found [X] technical manuals for [equipment]. Want them emailed?"
-- If email provided, send immediately
-- If no email yet, ask for it
+- Say: "Found [X] technical manuals for [equipment]. I'll email them to you."
+- If you have the user's email, immediately use email_manual to send the best/first manual
+- If no email yet, ask: "What email should I send them to?"
+- After sending, confirm: "Sent! Check your email for the [equipment] manual."
+
+IMPORTANT: Always email manuals when found. Users expect to receive them via email, not just get links.
 
 Remember: Be helpful, friendly, and action-oriented when appropriate.`,
         input_audio_format: this.config.inputAudioFormat || 'pcm16',
