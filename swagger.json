@@ -216,8 +216,8 @@
                         },
                         "model": {
                           "type": "string",
-                          "description": "OpenAI model being used",
-                          "example": "gpt-4o-realtime-preview-2024-12-17"
+                          "description": "OpenAI Realtime model being used",
+                          "example": "gpt-realtime"
                         },
                         "supportedFormats": {
                           "type": "array",
@@ -284,7 +284,7 @@
                           "items": {
                             "type": "string"
                           },
-                          "example": ["gpt-4o-realtime-preview-2024-12-17"]
+                          "example": ["gpt-realtime"]
                         },
                         "websocketEndpoint": {
                           "type": "string",
@@ -659,7 +659,7 @@
       "get": {
         "tags": ["Voice WebSocket"],
         "summary": "WebSocket endpoint for real-time voice communication",
-        "description": "Establish a WebSocket connection for real-time voice interaction with OpenAI's GPT-4o model.\n          \n## Connection URL\n```\nwss://parts.up.railway.app/api/v1/voice/realtime?token=YOUR_TOKEN\n```\n\n## Authentication\nInclude the token from /voice/token endpoint as a query parameter or in Authorization header.\n\n## Message Format\n\n### Client to Server Messages:\n- **Send Audio**: `{ \"type\": \"input_audio_buffer.append\", \"audio\": \"base64_encoded_audio\" }`\n- **Commit Audio**: `{ \"type\": \"input_audio_buffer.commit\" }`\n- **Clear Audio**: `{ \"type\": \"input_audio_buffer.clear\" }`\n- **Send Text**: `{ \"type\": \"conversation.item.create\", \"item\": { \"content\": [{ \"text\": \"Hello\" }] } }`\n- **Create Response**: `{ \"type\": \"response.create\" }`\n- **Cancel Response**: `{ \"type\": \"response.cancel\" }`\n\n### Server to Client Messages:\n- **Session Created**: Confirms connection established\n- **Audio Response**: Streaming audio chunks in base64\n- **Text Response**: Streaming text transcription\n- **Response Done**: Indicates completion with token usage\n\n## Audio Format\n- Default: PCM16 24kHz mono\n- Supported: PCM16, G.711 µ-law, G.711 A-law",
+        "description": "Establish a WebSocket connection for real-time voice interaction with OpenAI's latest gpt-realtime model (September 2025).\n          \n## Connection URL\n```\nwss://parts.up.railway.app/api/v1/voice/realtime?token=YOUR_TOKEN\n```\n\n## Authentication\nInclude the token from /voice/token endpoint as a query parameter or in Authorization header.\n\n## Message Format\n\n### Client to Server Messages:\n- **Send Audio**: `{ \"type\": \"input_audio_buffer.append\", \"audio\": \"base64_encoded_audio\" }`\n- **Commit Audio**: `{ \"type\": \"input_audio_buffer.commit\" }`\n- **Clear Audio**: `{ \"type\": \"input_audio_buffer.clear\" }`\n- **Send Text**: `{ \"type\": \"conversation.item.create\", \"item\": { \"content\": [{ \"text\": \"Hello\" }] } }`\n- **Create Response**: `{ \"type\": \"response.create\" }`\n- **Cancel Response**: `{ \"type\": \"response.cancel\" }`\n\n### Server to Client Messages:\n- **Session Created**: Confirms connection established\n- **Audio Response**: Streaming audio chunks in base64\n- **Text Response**: Streaming text transcription\n- **Response Done**: Indicates completion with token usage\n\n## Audio Format\n- Default: PCM16 24kHz mono\n- Supported: PCM16, G.711 µ-law, G.711 A-law",
         "security": [
           {
             "bearerAuth": []

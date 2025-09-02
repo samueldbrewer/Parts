@@ -168,8 +168,8 @@ const options = {
                           },
                           model: {
                             type: 'string',
-                            description: 'OpenAI model being used',
-                            example: 'gpt-4o-realtime-preview-2024-12-17',
+                            description: 'OpenAI Realtime model being used',
+                            example: 'gpt-realtime',
                           },
                           supportedFormats: {
                             type: 'array',
@@ -230,7 +230,7 @@ const options = {
                           supportedModels: {
                             type: 'array',
                             items: { type: 'string' },
-                            example: ['gpt-4o-realtime-preview-2024-12-17'],
+                            example: ['gpt-realtime'],
                           },
                           websocketEndpoint: {
                             type: 'string',
@@ -471,7 +471,7 @@ const options = {
         get: {
           tags: ['Voice WebSocket'],
           summary: 'WebSocket endpoint for real-time voice communication',
-          description: `Establish a WebSocket connection for real-time voice interaction with OpenAI's GPT-4o model.
+          description: `Establish a WebSocket connection for real-time voice interaction with OpenAI's latest gpt-realtime model (September 2025).
           
 ## Connection URL
 \`\`\`
