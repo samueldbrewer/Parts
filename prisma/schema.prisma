@@ -52,12 +52,38 @@ model VoiceConversation {
   @@index([timestamp])
 }
 
-// Add your models here
-// Example:
-// model User {
-//   id        String   @id @default(uuid())
-//   email     String   @unique
-//   name      String?
-//   createdAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
-// }
+// Parts identification tracking
+model PartIdentification {
+  id                   String   @id @default(uuid())
+  userId               String?
+  imageHash            String
+  identifiedPartNumber String?
+  confidenceScore      Float    @default(0)
+  identificationData   Json
+  extractionData       Json?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([imageHash])
+  @@index([identifiedPartNumber])
+  @@index([createdAt])
+}
+
+// Parts catalog
+model PartsCatalog {
+  id                 String   @id @default(uuid())
+  partNumber         String   @unique
+  manufacturer       String?
+  type               String?
+  description        String?
+  specifications     Json?
+  visualFeatures     Json?
+  commonApplications String[]
+  crossReferences    String[]
+  imageUrls          String[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([manufacturer])
+  @@index([type])
+}

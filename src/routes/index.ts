@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import voiceRoutes from './voice.routes';
 import adminRoutes from './admin.routes';
+import partsRoutes from './parts.routes';
 
 const router = Router();
 
@@ -11,6 +12,9 @@ const router = Router();
 
 // Voice endpoints
 router.use('/voice', voiceRoutes);
+
+// Parts endpoints
+router.use('/parts', partsRoutes);
 
 // Admin endpoints
 router.use('/admin', adminRoutes);
@@ -29,6 +33,12 @@ router.get('/', (req, res) => {
         websocket: '/api/v1/voice/realtime',
         sessions: '/api/v1/voice/sessions',
         usage: '/api/v1/voice/usage',
+      },
+      parts: {
+        identifyVisual: '/api/v1/parts/identify/visual',
+        identifyNameplate: '/api/v1/parts/identify/nameplate',
+        compareVisual: '/api/v1/parts/compare/visual',
+        identifyDamaged: '/api/v1/parts/identify/damaged',
       },
     },
   });
