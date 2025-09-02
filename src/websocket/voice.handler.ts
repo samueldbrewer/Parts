@@ -46,8 +46,8 @@ export class VoiceWebSocketHandler {
 
         const openaiConfig: RealtimeConfig = {
           apiKey: config.openai.apiKey,
-          model: 'gpt-4o-realtime-preview-2024-12-17',
-          voice: 'alloy',
+          model: config.openai.realtimeModel || 'gpt-realtime',
+          voice: config.openai.voice || 'alloy',
           instructions,
           turnDetection: 'server_vad',
           inputAudioFormat: 'pcm16',

@@ -31,7 +31,7 @@ Returns a JWT token and WebSocket URL for establishing voice connection.
     "token": "eyJhbGci...",
     "url": "wss://your-api.com/api/v1/voice/realtime",
     "expiresIn": 3600,
-    "model": "gpt-4o-realtime-preview-2024-12-17",
+    "model": "gpt-realtime",
     "supportedFormats": ["pcm16", "g711_ulaw", "g711_alaw"],
     "defaultFormat": "pcm16",
     "sampleRate": 24000
@@ -151,7 +151,7 @@ Connect to this endpoint with the token from `/api/v1/voice/token`.
   "data": {
     "session": {
       "id": "session_123",
-      "model": "gpt-4o-realtime-preview-2024-12-17"
+      "model": "gpt-realtime"
     }
   }
 }

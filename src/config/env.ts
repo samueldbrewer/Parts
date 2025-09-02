@@ -48,9 +48,9 @@ const envSchema = Joi.object({
 
   // OpenAI Configuration
   OPENAI_API_KEY: Joi.string().default(''),
-  OPENAI_REALTIME_MODEL: Joi.string().default('gpt-4o-realtime-preview-2024-12-17'),
+  OPENAI_REALTIME_MODEL: Joi.string().default('gpt-realtime'),
   OPENAI_VOICE: Joi.string()
-    .valid('alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer')
+    .valid('alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer', 'cedar', 'marin')
     .default('alloy'),
 }).unknown(true);
 

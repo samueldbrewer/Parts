@@ -26,7 +26,7 @@ class VoiceController {
           token,
           url: wsUrl,
           expiresIn: 3600, // 1 hour
-          model: 'gpt-4o-realtime-preview-2024-12-17',
+          model: 'gpt-realtime',
           supportedFormats: ['pcm16', 'g711_ulaw', 'g711_alaw'],
           defaultFormat: 'pcm16',
           sampleRate: 24000,
@@ -241,7 +241,7 @@ class VoiceController {
           status: openaiConfigured ? 'healthy' : 'missing_configuration',
           activeSessions,
           openaiConfigured,
-          supportedModels: ['gpt-4o-realtime-preview-2024-12-17'],
+          supportedModels: ['gpt-realtime'],
           websocketEndpoint: '/api/v1/voice/realtime',
         },
       });

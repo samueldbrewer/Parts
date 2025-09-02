@@ -48,7 +48,7 @@ export class OpenAIRealtimeService extends EventEmitter {
   async connect(sessionId: string, userId?: string): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        const url = `${this.baseUrl}?model=${this.config.model || 'gpt-4o-realtime-preview-2024-12-17'}`;
+        const url = `${this.baseUrl}?model=${this.config.model || 'gpt-realtime'}`;
 
         this.session = {
           id: sessionId,
