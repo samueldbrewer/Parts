@@ -33,7 +33,7 @@ export class FunctionToolsService {
         type: 'function',
         name: 'search_manual_pdfs',
         description:
-          'Search specifically for equipment manuals, technical manuals, user guides, and service manuals in PDF format. Use this when looking for technical documentation for any equipment, appliances, or devices.',
+          'Search for equipment manuals in PDF format. ALWAYS default to manual_type="service_manual" unless user explicitly asks for user manual. Service manuals include technical, repair, and maintenance documentation.',
         parameters: {
           type: 'object',
           properties: {
@@ -45,8 +45,9 @@ export class FunctionToolsService {
             manual_type: {
               type: 'string',
               description:
-                'Type of manual needed: user_manual, service_manual, installation_guide, parts_list, or any',
+                'Type of manual needed. DEFAULT TO "service_manual" for technical documentation. Only use "user_manual" if explicitly requested.',
               enum: ['user_manual', 'service_manual', 'installation_guide', 'parts_list', 'any'],
+              default: 'service_manual',
             },
           },
           required: ['equipment_name'],
@@ -245,7 +246,9 @@ export class FunctionToolsService {
       any: 'manual guide',
     };
 
-    const manualKeywords = manualTypeMap[args.manual_type || 'any'] || 'manual';
+    // Default to service_manual for technical documentation
+    const manualType = args.manual_type || 'service_manual';
+    const manualKeywords = manualTypeMap[manualType] || 'service manual technical manual';
     const searchQuery = `"${args.equipment_name}" ${manualKeywords} filetype:pdf OR ext:pdf`;
 
     logger.info('Searching for equipment manual PDFs', {
