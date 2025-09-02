@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Parts Identifier - Visual Recognition Demo</title>
+    <link rel="icon" type="image/png" href="/logo.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            padding-top: 20px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.95;
+        }
+
+        .demo-card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .upload-area {
+            border: 3px dashed #e0e0e0;
+            border-radius: 15px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #fafafa;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f5f3ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #f5f3ff;
+            transform: scale(1.02);
+        }
+
+        .upload-area.has-image {
+            padding: 0;
+            border: none;
+            background: none;
+        }
+
+        .upload-icon {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 28px;
+        }
+
+        .upload-text {
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        .upload-text h3 {
+            font-size: 20px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .upload-text p {
+            font-size: 14px;
+            color: #999;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #333;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .preview-container {
+            position: relative;
+            width: 100%;
+            max-width: 100%;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        .preview-image {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 15px;
+        }
+
+        .remove-image {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            border: none;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .remove-image:hover {
+            background: white;
+            transform: scale(1.1);
+        }
+
+        .action-buttons {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            flex: 1;
+            min-width: 140px;
+            padding: 14px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .action-btn.loading::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: loading 1.5s infinite;
+        }
+
+        @keyframes loading {
+            to {
+                left: 100%;
+            }
+        }
+
+        .results-container {
+            display: none;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        .results-container.show {
+            display: block;
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .confidence-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .confidence-high {
+            background: linear-gradient(135deg, #00c851 0%, #00a846 100%);
+        }
+
+        .confidence-medium {
+            background: linear-gradient(135deg, #ffbb33 0%, #ff8c00 100%);
+        }
+
+        .confidence-low {
+            background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+        }
+
+        .result-section {
+            margin-bottom: 25px;
+        }
+
+        .result-section h3 {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .part-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+
+        .part-number {
+            font-size: 24px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .part-details {
+            display: grid;
+            gap: 8px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+        }
+
+        .detail-label {
+            color: #666;
+        }
+
+        .detail-value {
+            color: #333;
+            font-weight: 600;
+        }
+
+        .spec-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+        }
+
+        .spec-item {
+            background: white;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid #e0e0e0;
+            text-align: center;
+        }
+
+        .spec-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 4px;
+        }
+
+        .spec-label {
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+        }
+
+        .price-card {
+            background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+
+        .price-main {
+            font-size: 28px;
+            font-weight: 700;
+            color: #00c851;
+            margin-bottom: 8px;
+        }
+
+        .price-sources {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .availability-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .availability-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+        }
+
+        .availability-source {
+            font-size: 14px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .availability-status {
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .in-stock {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .out-of-stock {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .cross-ref-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .cross-ref-item {
+            padding: 8px 14px;
+            background: #e3f2fd;
+            color: #1976d2;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .loader {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loader.show {
+            display: block;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            margin: 0 auto 20px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .endpoint-selector {
+            margin-bottom: 20px;
+        }
+
+        .endpoint-tabs {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .endpoint-tab {
+            padding: 12px;
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .endpoint-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        .endpoint-description {
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+            margin-top: 5px;
+        }
+
+        /* Mobile optimizations */
+        @media (max-width: 480px) {
+            .container {
+                padding: 15px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .demo-card {
+                padding: 20px;
+                border-radius: 15px;
+            }
+
+            .upload-area {
+                padding: 30px 15px;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .action-btn {
+                width: 100%;
+            }
+
+            .endpoint-tabs {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            }
+
+            .demo-card {
+                background: #2d2d2d;
+                color: #e0e0e0;
+            }
+
+            .upload-area {
+                background: #1a1a1a;
+                border-color: #444;
+            }
+
+            .upload-area:hover {
+                background: #2a2a3e;
+                border-color: #667eea;
+            }
+
+            .part-info {
+                background: #1a1a1a;
+            }
+
+            .spec-item {
+                background: #2d2d2d;
+                border-color: #444;
+            }
+
+            .availability-item {
+                background: #2d2d2d;
+                border-color: #444;
+            }
+
+            .endpoint-tab {
+                background: #2d2d2d;
+                border-color: #444;
+                color: #e0e0e0;
+            }
+
+            .detail-label,
+            .spec-label {
+                color: #999;
+            }
+
+            .detail-value,
+            .part-number {
+                color: #e0e0e0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Parts Visual Identifier</h1>
+            <p>Take or upload a photo to identify parts instantly</p>
+        </div>
+
+        <div class="demo-card">
+            <div class="endpoint-selector">
+                <div class="endpoint-tabs">
+                    <div class="endpoint-tab active" data-endpoint="identify">
+                        📷 Identify Part
+                    </div>
+                    <div class="endpoint-tab" data-endpoint="nameplate">
+                        🏷️ Read Nameplate
+                    </div>
+                    <div class="endpoint-tab" data-endpoint="damaged">
+                        🔥 Damaged Part
+                    </div>
+                    <div class="endpoint-tab" data-endpoint="compare">
+                        🔄 Compare Parts
+                    </div>
+                </div>
+                <div class="endpoint-description" id="endpointDescription">
+                    Identify any part from a photo and get specs, pricing, and availability
+                </div>
+            </div>
+
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📸</div>
+                <div class="upload-text">
+                    <h3>Upload Part Photo</h3>
+                    <p>Drag & drop or click to select</p>
+                </div>
+                <div class="upload-buttons">
+                    <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">
+                        Choose File
+                    </button>
+                    <button class="btn" onclick="document.getElementById('cameraInput').click()">
+                        Take Photo
+                    </button>
+                </div>
+            </div>
+
+            <input type="file" id="fileInput" class="file-input" accept="image/*" onchange="handleFileSelect(event)">
+            <input type="file" id="cameraInput" class="file-input" accept="image/*" capture="environment" onchange="handleFileSelect(event)">
+            
+            <div id="secondImageArea" style="display: none; margin-top: 20px;">
+                <div class="upload-area" id="uploadArea2">
+                    <div class="upload-icon">📸</div>
+                    <div class="upload-text">
+                        <h3>Upload Second Part</h3>
+                        <p>For comparison</p>
+                    </div>
+                    <div class="upload-buttons">
+                        <button class="btn btn-secondary" onclick="document.getElementById('fileInput2').click()">
+                            Choose File
+                        </button>
+                    </div>
+                </div>
+                <input type="file" id="fileInput2" class="file-input" accept="image/*" onchange="handleFileSelect(event, 2)">
+            </div>
+
+            <div class="action-buttons" id="actionButtons" style="display: none;">
+                <button class="action-btn" id="identifyBtn" onclick="identifyPart()">
+                    🔍 Identify Part
+                </button>
+                <button class="action-btn" id="identifyPricingBtn" onclick="identifyPart(true)">
+                    💰 ID with Pricing
+                </button>
+            </div>
+
+            <div class="loader" id="loader">
+                <div class="spinner"></div>
+                <p>Analyzing image...</p>
+                <p style="font-size: 12px; color: #999; margin-top: 10px;">This may take a few seconds</p>
+            </div>
+
+            <div class="error-message" id="errorMessage"></div>
+
+            <div class="results-container" id="resultsContainer">
+                <!-- Results will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedImage = null;
+        let selectedImage2 = null;
+        let currentEndpoint = 'identify';
+        const API_BASE = '/api/v1/parts';
+
+        // Endpoint configurations
+        const endpoints = {
+            identify: {
+                name: 'Identify Part',
+                description: 'Identify any part from a photo and get specs, pricing, and availability',
+                requiresSecondImage: false,
+                url: '/identify/visual'
+            },
+            nameplate: {
+                name: 'Read Nameplate',
+                description: 'Extract model numbers, serial numbers, and specifications from equipment nameplates',
+                requiresSecondImage: false,
+                url: '/identify/nameplate'
+            },
+            damaged: {
+                name: 'Damaged Part',
+                description: 'Identify burned, corroded, or damaged parts using shape and context analysis',
+                requiresSecondImage: false,
+                url: '/identify/damaged'
+            },
+            compare: {
+                name: 'Compare Parts',
+                description: 'Upload two part photos to check if they are the same or compatible',
+                requiresSecondImage: true,
+                url: '/compare/visual'
+            }
+        };
+
+        // Handle endpoint tab clicks
+        document.querySelectorAll('.endpoint-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.endpoint-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                currentEndpoint = this.dataset.endpoint;
+                
+                // Update description
+                document.getElementById('endpointDescription').textContent = endpoints[currentEndpoint].description;
+                
+                // Show/hide second image area for compare
+                document.getElementById('secondImageArea').style.display = 
+                    endpoints[currentEndpoint].requiresSecondImage ? 'block' : 'none';
+                
+                // Reset UI
+                resetUI();
+            });
+        });
+
+        // Drag and drop handling
+        const uploadArea = document.getElementById('uploadArea');
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        function handleFileSelect(event, imageNumber = 1) {
+            const file = event.target.files[0];
+            if (file) {
+                handleFile(file, imageNumber);
+            }
+        }
+
+        function handleFile(file, imageNumber = 1) {
+            if (!file.type.startsWith('image/')) {
+                showError('Please select an image file');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                if (imageNumber === 1) {
+                    selectedImage = file;
+                    displayImage(e.target.result, 'uploadArea');
+                } else {
+                    selectedImage2 = file;
+                    displayImage(e.target.result, 'uploadArea2');
+                }
+                
+                // Show action buttons when image(s) are selected
+                if (currentEndpoint === 'compare') {
+                    if (selectedImage && selectedImage2) {
+                        document.getElementById('actionButtons').style.display = 'flex';
+                    }
+                } else {
+                    document.getElementById('actionButtons').style.display = 'flex';
+                }
+                
+                // Update button text based on endpoint
+                const btn = document.getElementById('identifyBtn');
+                if (currentEndpoint === 'compare') {
+                    btn.textContent = '🔄 Compare Parts';
+                    document.getElementById('identifyPricingBtn').style.display = 'none';
+                } else if (currentEndpoint === 'nameplate') {
+                    btn.textContent = '🏷️ Read Nameplate';
+                    document.getElementById('identifyPricingBtn').style.display = 'none';
+                } else if (currentEndpoint === 'damaged') {
+                    btn.textContent = '🔥 Identify Damaged Part';
+                    document.getElementById('identifyPricingBtn').style.display = 'block';
+                } else {
+                    btn.textContent = '🔍 Identify Part';
+                    document.getElementById('identifyPricingBtn').style.display = 'block';
+                }
+                
+                hideError();
+                hideResults();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function displayImage(src, areaId) {
+            const area = document.getElementById(areaId);
+            area.classList.add('has-image');
+            area.innerHTML = `
+                <div class="preview-container">
+                    <img src="${src}" class="preview-image" alt="Selected part">
+                    <button class="remove-image" onclick="removeImage('${areaId}')">×</button>
+                </div>
+            `;
+        }
+
+        function removeImage(areaId) {
+            const area = document.getElementById(areaId);
+            area.classList.remove('has-image');
+            
+            if (areaId === 'uploadArea') {
+                selectedImage = null;
+                area.innerHTML = `
+                    <div class="upload-icon">📸</div>
+                    <div class="upload-text">
+                        <h3>Upload Part Photo</h3>
+                        <p>Drag & drop or click to select</p>
+                    </div>
+                    <div class="upload-buttons">
+                        <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">
+                            Choose File
+                        </button>
+                        <button class="btn" onclick="document.getElementById('cameraInput').click()">
+                            Take Photo
+                        </button>
+                    </div>
+                `;
+            } else {
+                selectedImage2 = null;
+                area.innerHTML = `
+                    <div class="upload-icon">📸</div>
+                    <div class="upload-text">
+                        <h3>Upload Second Part</h3>
+                        <p>For comparison</p>
+                    </div>
+                    <div class="upload-buttons">
+                        <button class="btn btn-secondary" onclick="document.getElementById('fileInput2').click()">
+                            Choose File
+                        </button>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('actionButtons').style.display = 'none';
+            hideResults();
+        }
+
+        async function identifyPart(includePricing = false) {
+            if (!selectedImage) {
+                showError('Please select an image first');
+                return;
+            }
+
+            if (currentEndpoint === 'compare' && !selectedImage2) {
+                showError('Please select two images to compare');
+                return;
+            }
+
+            showLoader();
+            hideError();
+            hideResults();
+
+            const formData = new FormData();
+            
+            if (currentEndpoint === 'compare') {
+                formData.append('images', selectedImage);
+                formData.append('images', selectedImage2);
+            } else {
+                formData.append('image', selectedImage);
+            }
+
+            try {
+                const queryParams = new URLSearchParams();
+                if (includePricing && currentEndpoint !== 'nameplate' && currentEndpoint !== 'compare') {
+                    queryParams.append('includePricing', 'true');
+                    queryParams.append('includeAvailability', 'true');
+                }
+
+                const url = `${API_BASE}${endpoints[currentEndpoint].url}${queryParams.toString() ? '?' + queryParams : ''}`;
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    displayResults(data);
+                } else {
+                    showError(data.error || 'Failed to identify part');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError('Failed to connect to server. Please try again.');
+            } finally {
+                hideLoader();
+            }
+        }
+
+        function displayResults(data) {
+            const container = document.getElementById('resultsContainer');
+            
+            if (currentEndpoint === 'compare') {
+                container.innerHTML = generateComparisonResults(data);
+            } else if (currentEndpoint === 'nameplate') {
+                container.innerHTML = generateNameplateResults(data);
+            } else {
+                container.innerHTML = generateIdentificationResults(data);
+            }
+            
+            container.classList.add('show');
+        }
+
+        function generateIdentificationResults(data) {
+            const confidence = data.confidence || 0;
+            const confidenceClass = confidence > 0.8 ? 'confidence-high' : 
+                                   confidence > 0.5 ? 'confidence-medium' : 'confidence-low';
+            const confidencePercent = Math.round(confidence * 100);
+            
+            let html = `
+                <div class="result-header">
+                    <h2 style="margin: 0; color: #333;">Identification Results</h2>
+                    <div class="confidence-badge ${confidenceClass}">
+                        ${confidencePercent}% Confident
+                    </div>
+                </div>
+            `;
+
+            // Primary match
+            if (data.primaryMatch) {
+                const match = data.primaryMatch;
+                html += `
+                    <div class="result-section">
+                        <h3>Primary Match</h3>
+                        <div class="part-info">
+                            <div class="part-number">${match.partNumber}</div>
+                            <div class="part-details">
+                                ${match.manufacturer ? `
+                                    <div class="detail-row">
+                                        <span class="detail-label">Manufacturer:</span>
+                                        <span class="detail-value">${match.manufacturer}</span>
+                                    </div>
+                                ` : ''}
+                                ${match.type ? `
+                                    <div class="detail-row">
+                                        <span class="detail-label">Type:</span>
+                                        <span class="detail-value">${match.type}</span>
+                                    </div>
+                                ` : ''}
+                                <div class="detail-row">
+                                    <span class="detail-label">Match Type:</span>
+                                    <span class="detail-value">${match.matchType}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Specifications
+                if (match.specifications && Object.keys(match.specifications).length > 0) {
+                    html += `
+                        <div class="result-section">
+                            <h3>Specifications</h3>
+                            <div class="spec-grid">
+                                ${Object.entries(match.specifications).map(([key, value]) => `
+                                    <div class="spec-item">
+                                        <div class="spec-value">${value}</div>
+                                        <div class="spec-label">${key}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Pricing
+                if (match.pricing) {
+                    const pricing = match.pricing;
+                    html += `
+                        <div class="result-section">
+                            <h3>Pricing</h3>
+                            <div class="price-card">
+                                ${pricing.lowestPrice ? `
+                                    <div class="price-main">$${pricing.lowestPrice.toFixed(2)}</div>
+                                    <div class="price-sources">
+                                        Lowest price from ${pricing.sources?.length || 0} sources
+                                        ${pricing.averagePrice ? ` • Average: $${pricing.averagePrice.toFixed(2)}` : ''}
+                                    </div>
+                                ` : '<p>No pricing information available</p>'}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Availability
+                if (match.availability && match.availability.sources) {
+                    html += `
+                        <div class="result-section">
+                            <h3>Availability</h3>
+                            <div class="availability-list">
+                                ${match.availability.sources.map(source => `
+                                    <div class="availability-item">
+                                        <span class="availability-source">${source.source}</span>
+                                        <span class="availability-status ${source.inStock ? 'in-stock' : 'out-of-stock'}">
+                                            ${source.inStock ? 'In Stock' : 'Out of Stock'}
+                                        </span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Cross References
+                if (match.crossReferences && match.crossReferences.length > 0) {
+                    html += `
+                        <div class="result-section">
+                            <h3>Cross References</h3>
+                            <div class="cross-ref-list">
+                                ${match.crossReferences.map(ref => `
+                                    <div class="cross-ref-item">${ref}</div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            // Extracted Information
+            if (data.extractedInfo) {
+                const info = data.extractedInfo;
+                html += `
+                    <div class="result-section">
+                        <h3>Extracted Information</h3>
+                        <div class="part-info">
+                            <div class="part-details">
+                                <div class="detail-row">
+                                    <span class="detail-label">Part Type:</span>
+                                    <span class="detail-value">${info.type || 'Unknown'}</span>
+                                </div>
+                                ${info.manufacturer ? `
+                                    <div class="detail-row">
+                                        <span class="detail-label">Manufacturer:</span>
+                                        <span class="detail-value">${info.manufacturer}</span>
+                                    </div>
+                                ` : ''}
+                                <div class="detail-row">
+                                    <span class="detail-label">Condition:</span>
+                                    <span class="detail-value">${info.condition || 'Unknown'}</span>
+                                </div>
+                                ${info.equipmentType ? `
+                                    <div class="detail-row">
+                                        <span class="detail-label">Equipment Type:</span>
+                                        <span class="detail-value">${info.equipmentType}</span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Alternative Matches
+            if (data.alternativeMatches && data.alternativeMatches.length > 0) {
+                html += `
+                    <div class="result-section">
+                        <h3>Alternative Matches</h3>
+                        ${data.alternativeMatches.map(match => `
+                            <div class="part-info" style="margin-bottom: 10px;">
+                                <div class="part-number" style="font-size: 18px;">${match.partNumber}</div>
+                                ${match.manufacturer ? `<div style="color: #666; font-size: 14px;">${match.manufacturer}</div>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            return html;
+        }
+
+        function generateComparisonResults(data) {
+            const comparison = data.comparison;
+            const isMatch = comparison.isMatch;
+            
+            return `
+                <div class="result-header">
+                    <h2 style="margin: 0; color: #333;">Comparison Results</h2>
+                    <div class="confidence-badge ${isMatch ? 'confidence-high' : 'confidence-low'}">
+                        ${isMatch ? '✓ Match' : '✗ Different'}
+                    </div>
+                </div>
+
+                <div class="result-section">
+                    <h3>Comparison Summary</h3>
+                    <div class="part-info">
+                        <div class="part-details">
+                            <div class="detail-row">
+                                <span class="detail-label">Match Type:</span>
+                                <span class="detail-value">${comparison.matchType}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Confidence:</span>
+                                <span class="detail-value">${Math.round(comparison.confidence * 100)}%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                ${comparison.similarities && comparison.similarities.length > 0 ? `
+                    <div class="result-section">
+                        <h3>Similarities</h3>
+                        <div class="cross-ref-list">
+                            ${comparison.similarities.map(sim => `
+                                <div class="cross-ref-item" style="background: #e8f5e9; color: #2e7d32;">
+                                    ✓ ${sim}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+
+                ${comparison.differences && comparison.differences.length > 0 ? `
+                    <div class="result-section">
+                        <h3>Differences</h3>
+                        <div class="cross-ref-list">
+                            ${comparison.differences.map(diff => `
+                                <div class="cross-ref-item" style="background: #ffebee; color: #c62828;">
+                                    ✗ ${diff}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+
+                <div class="result-section">
+                    <h3>Part 1 Summary</h3>
+                    <div class="part-info">
+                        ${data.part1Summary.partNumber ? `<div class="part-number" style="font-size: 18px;">${data.part1Summary.partNumber}</div>` : ''}
+                        <div class="part-details">
+                            <div class="detail-row">
+                                <span class="detail-label">Type:</span>
+                                <span class="detail-value">${data.part1Summary.type || 'Unknown'}</span>
+                            </div>
+                            ${data.part1Summary.manufacturer ? `
+                                <div class="detail-row">
+                                    <span class="detail-label">Manufacturer:</span>
+                                    <span class="detail-value">${data.part1Summary.manufacturer}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="result-section">
+                    <h3>Part 2 Summary</h3>
+                    <div class="part-info">
+                        ${data.part2Summary.partNumber ? `<div class="part-number" style="font-size: 18px;">${data.part2Summary.partNumber}</div>` : ''}
+                        <div class="part-details">
+                            <div class="detail-row">
+                                <span class="detail-label">Type:</span>
+                                <span class="detail-value">${data.part2Summary.type || 'Unknown'}</span>
+                            </div>
+                            ${data.part2Summary.manufacturer ? `
+                                <div class="detail-row">
+                                    <span class="detail-label">Manufacturer:</span>
+                                    <span class="detail-value">${data.part2Summary.manufacturer}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function generateNameplateResults(data) {
+            return `
+                <div class="result-header">
+                    <h2 style="margin: 0; color: #333;">Nameplate Information</h2>
+                    <div class="confidence-badge confidence-high">
+                        Extracted
+                    </div>
+                </div>
+
+                ${data.equipment ? `
+                    <div class="result-section">
+                        <h3>Equipment Information</h3>
+                        <div class="part-info">
+                            <div class="part-details">
+                                ${data.equipment.manufacturer ? `
+                                    <div class="detail-row">
+                                        <span class="detail-label">Manufacturer:</span>
+                                        <span class="detail-value">${data.equipment.manufacturer}</span>
+                                    </div>
+                                ` : ''}
+                                ${data.equipment.model ? `
+                                    <div class="detail-row">
+                                        <span class="detail-label">Model:</span>
+                                        <span class="detail-value">${data.equipment.model}</span>
+                                    </div>
+                                ` : ''}
+                                ${data.equipment.serial ? `
+                                    <div class="detail-row">
+                                        <span class="detail-label">Serial:</span>
+                                        <span class="detail-value">${data.equipment.serial}</span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+
+                ${data.specifications && Object.keys(data.specifications).length > 0 ? `
+                    <div class="result-section">
+                        <h3>Specifications</h3>
+                        <div class="spec-grid">
+                            ${Object.entries(data.specifications).map(([key, value]) => `
+                                <div class="spec-item">
+                                    <div class="spec-value">${value}</div>
+                                    <div class="spec-label">${key}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+
+                ${data.allNumbers && data.allNumbers.length > 0 ? `
+                    <div class="result-section">
+                        <h3>All Numbers Found</h3>
+                        <div class="cross-ref-list">
+                            ${data.allNumbers.map(num => `
+                                <div class="cross-ref-item">${num}</div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+            `;
+        }
+
+        function showLoader() {
+            document.getElementById('loader').classList.add('show');
+            document.querySelectorAll('.action-btn').forEach(btn => {
+                btn.disabled = true;
+                btn.classList.add('loading');
+            });
+        }
+
+        function hideLoader() {
+            document.getElementById('loader').classList.remove('show');
+            document.querySelectorAll('.action-btn').forEach(btn => {
+                btn.disabled = false;
+                btn.classList.remove('loading');
+            });
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.textContent = message;
+            errorEl.classList.add('show');
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').classList.remove('show');
+        }
+
+        function showResults() {
+            document.getElementById('resultsContainer').classList.add('show');
+        }
+
+        function hideResults() {
+            document.getElementById('resultsContainer').classList.remove('show');
+        }
+
+        function resetUI() {
+            selectedImage = null;
+            selectedImage2 = null;
+            removeImage('uploadArea');
+            if (document.getElementById('uploadArea2')) {
+                removeImage('uploadArea2');
+            }
+            hideError();
+            hideResults();
+        }
+    </script>
+</body>
+</html>
