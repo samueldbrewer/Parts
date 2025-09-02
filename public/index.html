@@ -671,10 +671,7 @@
                             orb.classList.add('assistant-speaking');
                             status.classList.add('assistant-speaking');
                             status.textContent = 'Assistant is responding...';
-                            // Show interrupt tip
-                            if (interruptTip) {
-                                interruptTip.classList.add('visible');
-                            }
+                            // Don't show tip here - wait for actual playback
                         }
                     }
                     break;
@@ -687,14 +684,7 @@
                     // Full response complete - but audio might still be playing
                     // Don't remove animation immediately, let playback finish
                     console.log('Response done, audio queue length:', audioQueue.length);
-                    // Hide interrupt tip when response is done
-                    if (interruptTip) {
-                        setTimeout(() => {
-                            if (!isPlaying) {
-                                interruptTip.classList.remove('visible');
-                            }
-                        }, 500);
-                    }
+                    // Tip will be hidden when playback actually ends
                     break;
                     
                 case 'input_audio_transcription.completed':
@@ -793,6 +783,11 @@
                 isPlaying = false;
                 isFadingOut = false;
                 
+                // Hide interrupt tip
+                if (interruptTip) {
+                    interruptTip.classList.remove('visible');
+                }
+                
                 // Cancel any animation frames
                 if (animationFrame) {
                     cancelAnimationFrame(animationFrame);
@@ -821,6 +816,11 @@
             if (audioQueue.length === 0 || isFadingOut) {
                 isPlaying = false;
                 
+                // Hide interrupt tip when playback ends
+                if (interruptTip) {
+                    interruptTip.classList.remove('visible');
+                }
+                
                 // No more audio to play, remove assistant speaking animation
                 setTimeout(() => {
                     if (!isPlaying && !isUserSpeaking && !isProcessing) {
@@ -834,6 +834,11 @@
             }
 
             isPlaying = true;
+            
+            // Show interrupt tip when starting playback
+            if (interruptTip && sessionActive) {
+                interruptTip.classList.add('visible');
+            }
 
             try {
                 if (!playbackContext) {
@@ -898,6 +903,10 @@
             } catch (error) {
                 console.error('Audio playback error:', error);
                 isPlaying = false;
+                // Hide interrupt tip on error
+                if (interruptTip) {
+                    interruptTip.classList.remove('visible');
+                }
             }
         }
 

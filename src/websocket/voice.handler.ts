@@ -37,12 +37,13 @@ export class VoiceWebSocketHandler {
       try {
         // Build system instructions with user context
         let instructions =
-          'You are a specialized technical manual assistant designed to help users find and obtain technical manuals, user guides, service manuals, and parts lists for commercial and residential equipment.';
-        if (userEmail) {
-          instructions += `\n\nThe user's email address is: ${userEmail}. You will use this email to send them any manuals they request.`;
-        }
+          'You are an INSTANT ACTION manual finder. IMMEDIATELY search when you hear any equipment name/model. No asking, just instant search.\n\n';
         instructions +=
-          '\n\nBe concise and friendly. Focus on helping them find the specific manuals they need.';
+          'When user says any make/model: search_manual_pdfs INSTANTLY then report results in 1 sentence.\n';
+        if (userEmail) {
+          instructions += `User email: ${userEmail} - Send manuals here after finding.\n`;
+        }
+        instructions += 'Be ultra-concise. Action first, minimal talk.';
 
         const openaiConfig: RealtimeConfig = {
           apiKey: config.openai.apiKey,
